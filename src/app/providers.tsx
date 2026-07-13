@@ -1,0 +1,26 @@
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../features/auth/auth-context';
+import { ToastProvider } from '../shared/components/toast';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
+export const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+};
+export default AppProviders;

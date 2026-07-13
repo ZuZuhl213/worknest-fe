@@ -1,0 +1,75 @@
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { cn } from '../lib/utils';
+
+export type ToastType = 'success' | 'error' | 'info';
+
+interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+
+interface ToastContextType {
+  toast: (message: string, type?: ToastType) => void;
+}
+
+const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const toast = useCallback((message: string, type: ToastType = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  return (
+    <ToastContext.Provider value={{ toast }}>
+      {children}
+      <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-xs sm:max-w-sm w-full">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={cn(
+              'flex items-start gap-3 p-3.5 rounded-lg border bg-white shadow-lg animate-in slide-in-from-bottom duration-200 text-sm font-normal text-zinc-900',
+              {
+                'border-green-150 bg-green-50/30 text-green-950': t.type === 'success',
+                'border-red-150 bg-red-50/30 text-red-950': t.type === 'error',
+                'border-zinc-200 bg-white text-zinc-900': t.type === 'info',
+              }
+            )}
+          >
+            {t.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />}
+            {t.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />}
+            {t.type === 'info' && <Info className="h-5 w-5 text-indigo-600 shrink-0" />}
+            <span className="flex-1 text-left">{t.message}</span>
+            <button
+              onClick={() => removeToast(t.id)}
+              className="text-zinc-400 hover:text-zinc-600 cursor-pointer shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+};
+
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  return context;
+};
+export default ToastProvider;

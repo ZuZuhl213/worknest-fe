@@ -1,0 +1,142 @@
+import React from 'react';
+import { useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../../shared/api/client';
+import { Notification } from '../../types';
+import { useToast } from '../../shared/components/toast';
+import Card, { CardHeader, CardTitle, CardContent } from '../../shared/components/card';
+import Button from '../../shared/components/button';
+import { Bell, Check, CheckCheck, Clock } from 'lucide-react';
+
+export const NotificationsFeed: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const activeWorkspaceId = parseInt(workspaceId || '0');
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Fetch notifications
+  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
+    queryKey: ['notifications'],
+    queryFn: () => apiClient.get('/api/notifications').then(res => res.data),
+  });
+
+  // Mark single read mutation
+  const readMutation = useMutation({
+    mutationFn: (notificationId: number) => 
+      apiClient.patch<Notification>(`/api/notifications/${notificationId}/read`).then(res => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast('Notification marked as read', 'success');
+    },
+    onError: (err: any) => {
+      toast(err.response?.data?.message || 'Failed to update notification', 'error');
+    }
+  });
+
+  // Mark all as read mutation (simulated by marking each unread notification)
+  const readAllMutation = useMutation({
+    mutationFn: async () => {
+      const unread = notifications.filter(n => !n.read);
+      const promises = unread.map(n => apiClient.patch(`/api/notifications/${n.id}/read`));
+      await Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast('All notifications marked as read', 'success');
+    },
+    onError: () => {
+      toast('Failed to mark all notifications as read', 'error');
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Title Header */}
+      <div className="flex items-center justify-between text-left">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900">Notifications Feed</h1>
+          <p className="text-xs text-zinc-500 mt-1">Keep track of updates, task assignments, and mentions.</p>
+        </div>
+        {unreadCount > 0 && (
+          <Button 
+            onClick={() => readAllMutation.mutate()}
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-1.5 text-xs cursor-pointer font-medium"
+            isLoading={readAllMutation.isPending}
+          >
+            <CheckCheck className="h-4 w-4" />
+            Mark All as Read
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 p-5">
+          <Bell className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
+          <CardTitle className="text-sm font-semibold text-zinc-950">
+            Inbox ({unreadCount} Unread)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 text-left">
+          <div className="divide-y divide-zinc-150">
+            {notifications.map((notif) => (
+              <div 
+                key={notif.id}
+                className={`p-4 transition-colors flex gap-4 items-start ${
+                  !notif.read ? 'bg-indigo-50/10 border-l-2 border-indigo-500' : 'bg-white'
+                }`}
+              >
+                <div className="flex-1 flex flex-col gap-1 text-left">
+                  <h4 className={`text-xs font-semibold ${!notif.read ? 'text-zinc-900' : 'text-zinc-700'}`}>
+                    {notif.title}
+                  </h4>
+                  <p className="text-xs text-zinc-500 font-normal">
+                    {notif.content}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1 text-[10px] text-zinc-400 font-medium">
+                    <Clock className="h-3.5 w-3.5" />
+                    {new Date(notif.createdAt).toLocaleString(undefined, { 
+                      dateStyle: 'short', 
+                      timeStyle: 'short' 
+                    })}
+                  </div>
+                </div>
+
+                {!notif.read && (
+                  <Button
+                    onClick={() => readMutation.mutate(notif.id)}
+                    variant="ghost"
+                    size="sm"
+                    className="p-1.5 h-auto text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/50 cursor-pointer shrink-0"
+                    title="Mark as Read"
+                    isLoading={readMutation.isPending && readMutation.variables === notif.id}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+
+            {notifications.length === 0 && (
+              <div className="text-center py-10 text-zinc-400 text-xs italic">
+                Your inbox is clean. No notifications logged.
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+export default NotificationsFeed;

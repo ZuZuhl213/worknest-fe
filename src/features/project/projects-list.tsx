@@ -1,0 +1,201 @@
+import React, { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../../shared/api/client';
+import { Project } from '../../types';
+import Button from '../../shared/components/button';
+import Input from '../../shared/components/input';
+import Modal from '../../shared/components/modal';
+import Card, { CardHeader, CardTitle, CardContent, CardFooter } from '../../shared/components/card';
+import { useToast } from '../../shared/components/toast';
+import { FolderKanban, Plus, Clock, User, ArrowRight } from 'lucide-react';
+
+export const ProjectsList: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const activeWorkspaceId = parseInt(workspaceId || '0');
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [key, setKey] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Fetch projects in workspace
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
+    queryKey: ['projects', activeWorkspaceId],
+    queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects`).then(res => res.data),
+    enabled: !!activeWorkspaceId,
+  });
+
+  // Create project mutation
+  const createProjectMutation = useMutation({
+    mutationFn: (data: { name: string; projectKey: string; description: string }) => 
+      apiClient.post<Project>(`/api/workspaces/${activeWorkspaceId}/projects`, data).then(res => res.data),
+    onSuccess: (newProj) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', activeWorkspaceId] });
+      toast('Project created successfully!', 'success');
+      setModalOpen(false);
+      setName('');
+      setKey('');
+      setDescription('');
+      navigate(`/workspaces/${activeWorkspaceId}/projects/${newProj.id}`);
+    },
+    onError: (err: any) => {
+      toast(err.response?.data?.message || 'Failed to create project', 'error');
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !key.trim()) return;
+    createProjectMutation.mutate({ 
+      name, 
+      projectKey: key.toUpperCase().trim(), 
+      description 
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Title Header */}
+      <div className="flex items-center justify-between text-left">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-900">Projects Directory</h1>
+          <p className="text-xs text-zinc-500 mt-1">Manage and launch projects configured within this workspace.</p>
+        </div>
+        <Button 
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+        >
+          <Plus className="h-4 w-4" />
+          Create Project
+        </Button>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="bg-white border border-zinc-200 rounded-lg p-10 flex flex-col items-center justify-center text-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+            <FolderKanban className="h-6 w-6 text-indigo-600" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-zinc-900">No projects found</h3>
+            <p className="text-xs text-zinc-500 max-w-sm">
+              Workspaces need projects to house tasks. Create your first project below to start scheduling.
+            </p>
+          </div>
+          <Button 
+            onClick={() => setModalOpen(true)}
+            className="mt-2 flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Build Project
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {projects.map((proj) => (
+            <Card key={proj.id} className="hover:border-zinc-300 transition-all flex flex-col justify-between">
+              <CardHeader className="flex flex-row items-start justify-between gap-4 p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded bg-indigo-50 border border-indigo-100 flex items-center justify-center font-mono font-bold text-xs text-indigo-600 shrink-0 select-none">
+                    {proj.projectKey}
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <CardTitle className="text-sm font-semibold text-zinc-900">{proj.name}</CardTitle>
+                    <span className="text-[10px] text-zinc-400 font-medium">Key: {proj.projectKey}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 pt-0 text-left">
+                <p className="text-xs text-zinc-600 line-clamp-2 h-8">
+                  {proj.description || 'No project description provided.'}
+                </p>
+              </CardContent>
+              <CardFooter 
+                className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/50 flex justify-between items-center cursor-pointer"
+                onClick={() => navigate(`/workspaces/${workspaceId}/projects/${proj.id}`)}
+              >
+                <div className="flex items-center gap-3 text-zinc-500 text-[10px]">
+                  <span className="flex items-center gap-1">
+                    <User className="h-3.5 w-3.5 text-zinc-400" />
+                    {proj.createdBy?.fullName || 'System'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-zinc-400" />
+                    {new Date(proj.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-medium transition-colors">
+                  Open Board
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* New Project Creation Dialog */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Create New Project"
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
+          <Input
+            label="Project Name"
+            placeholder="e.g. Website Redesign"
+            required
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+          <Input
+            label="Project Key (Short Prefix, Max 20 Characters)"
+            placeholder="e.g. ENG, DES, RED"
+            required
+            maxLength={20}
+            value={key}
+            onChange={e => setKey(e.target.value)}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-500">Description</label>
+            <textarea
+              className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
+              placeholder="Describe this project's target objectives..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="cursor-pointer"
+              onClick={() => setModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit"
+              className="cursor-pointer"
+              isLoading={createProjectMutation.isPending}
+            >
+              Create Project
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+};
+export default ProjectsList;
