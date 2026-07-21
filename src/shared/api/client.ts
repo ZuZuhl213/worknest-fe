@@ -1,108 +1,131 @@
-import axios from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import type { AuthResponse } from '../../types';
 
-export const apiClient = axios.create({
-  baseURL: '',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (error: any) => void;
-}> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token!);
-    }
-  });
-
-  failedQueue = [];
+type ApiErrorBody = {
+  error?: string;
+  fields?: Record<string, string>;
+  message?: string;
+  status?: number;
 };
 
-// Request Interceptor: Attach token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+let accessToken: string | null = null;
+let csrfToken: string | null = null;
 
-// Response Interceptor: Auto Refresh on 401
+export const setAccessToken = (token: string | null) => {
+  accessToken = token;
+};
+
+export const getAccessToken = () => accessToken;
+
+export const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    if (!error.response) {
+      return 'Unable to connect to the server. Please check your connection and try again.';
+    }
+
+    const data = error.response.data;
+    if (data?.message) return data.message;
+    if (data?.fields && Object.keys(data.fields).length > 0) {
+      return Object.entries(data.fields)
+        .map(([field, message]) => `${field}: ${message}`)
+        .join('; ');
+    }
+    if (data?.error) return data.error;
+  }
+  return fallback;
+};
+
+export const getApiFieldErrors = (error: unknown) => {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return error.response?.data?.fields ?? {};
+  }
+  return {};
+};
+
+const clientOptions = {
+  baseURL: '',
+  withCredentials: true,
+};
+
+const authClient = axios.create(clientOptions);
+
+export const apiClient = axios.create(clientOptions);
+
+export const fetchCsrfToken = async () => {
+  await authClient.get('/api/auth/csrf');
+  const cookie = document.cookie
+    .split('; ')
+    .find((entry) => entry.startsWith('XSRF-TOKEN='));
+
+  if (!cookie) {
+    throw new Error('CSRF cookie was not issued by the server');
+  }
+
+  csrfToken = decodeURIComponent(cookie.slice('XSRF-TOKEN='.length));
+};
+
+const attachCsrfToken = (config: InternalAxiosRequestConfig) => {
+  if (csrfToken) {
+    config.headers['X-XSRF-TOKEN'] = csrfToken;
+  }
+  return config;
+};
+
+authClient.interceptors.request.use(attachCsrfToken);
+
+export const refreshAccessToken = async () => {
+  await fetchCsrfToken();
+  const response = await authClient.post<AuthResponse>('/api/auth/refresh');
+  setAccessToken(response.data.accessToken);
+  return response.data;
+};
+
+apiClient.interceptors.request.use((config) => {
+  attachCsrfToken(config);
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
+
+type RetryableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
+let refreshPromise: Promise<string> | null = null;
+
+const forceLogout = () => {
+  setAccessToken(null);
+  window.dispatchEvent(new Event('auth-logout'));
+};
+
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetryableRequest | undefined;
+    if (!originalRequest) return Promise.reject(error);
 
-    // Avoid infinite loop if auth refresh fails or if path is login/register/refresh
-    const isAuthUrl = 
-      originalRequest.url?.includes('/api/auth/login') ||
-      originalRequest.url?.includes('/api/auth/register') ||
-      originalRequest.url?.includes('/api/auth/refresh');
-
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthUrl) {
-      if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return apiClient(originalRequest);
-          })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        isRefreshing = false;
-        window.dispatchEvent(new Event('auth-logout'));
-        return Promise.reject(error);
-      }
-
-      try {
-        const response = await axios.post('/api/auth/refresh', { refreshToken });
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
-
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', newRefreshToken);
-
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        }
-
-        processQueue(null, accessToken);
-        isRefreshing = false;
-
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        isRefreshing = false;
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.dispatchEvent(new Event('auth-logout'));
-        return Promise.reject(refreshError);
-      }
+    const isAuthUrl = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh']
+      .some((path) => originalRequest.url?.includes(path));
+    if (error.response?.status !== 401 || originalRequest._retry || isAuthUrl) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
-  }
+    originalRequest._retry = true;
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken()
+        .then((session) => session.accessToken)
+        .finally(() => {
+          refreshPromise = null;
+        });
+    }
+
+    try {
+      const token = await refreshPromise;
+      originalRequest.headers.Authorization = `Bearer ${token}`;
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      forceLogout();
+      return Promise.reject(refreshError);
+    }
+  },
 );
+
 export default apiClient;

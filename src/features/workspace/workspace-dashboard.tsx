@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../shared/api/client';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
 import { Workspace, Project, WorkspaceMember, Role } from '../../types';
 import { useAuth } from '../auth/auth-context';
 import { useToast } from '../../shared/components/toast';
@@ -70,8 +70,8 @@ export const WorkspaceDashboard: React.FC = () => {
       setInviteEmail('');
       setInviteRole('MEMBER');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to invite member', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to invite member'), 'error');
     }
   });
 
@@ -83,8 +83,8 @@ export const WorkspaceDashboard: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['workspace-members', activeWorkspaceId] });
       toast('Member role updated!', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to update role', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to update role'), 'error');
     }
   });
 
@@ -96,10 +96,30 @@ export const WorkspaceDashboard: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['workspace-members', activeWorkspaceId] });
       toast('Member removed from workspace', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to remove member', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to remove member'), 'error');
     }
   });
+
+  // Delete workspace mutation
+  const navigate = useNavigate();
+  const deleteWorkspaceMutation = useMutation({
+    mutationFn: () => apiClient.delete(`/api/workspaces/${activeWorkspaceId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      toast('Workspace deleted successfully!', 'success');
+      navigate('/workspaces');
+    },
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to delete workspace'), 'error');
+    }
+  });
+
+  const handleDeleteWorkspace = () => {
+    if (confirm(`Are you absolutely sure you want to delete workspace "${workspace?.name}"?\nThis action cannot be undone and will delete all projects, tasks, and comments within this workspace.`)) {
+      deleteWorkspaceMutation.mutate();
+    }
+  };
 
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,6 +287,28 @@ export const WorkspaceDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Danger Zone - Only visible to Workspace Owner */}
+      {userRole === 'OWNER' && (
+        <Card className="border-red-200 bg-red-50/10 p-5 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-semibold text-red-700">Danger Zone</h3>
+              <p className="text-xs text-zinc-500">
+                Once you delete a workspace, there is no going back. All projects, tasks, and members will be removed.
+              </p>
+            </div>
+            <Button
+              variant="danger"
+              onClick={handleDeleteWorkspace}
+              isLoading={deleteWorkspaceMutation.isPending}
+              className="shrink-0 text-xs font-medium cursor-pointer"
+            >
+              Delete Workspace
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Member Invitation Modal Dialog */}
       <Modal

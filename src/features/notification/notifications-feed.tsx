@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../shared/api/client';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
 import { Notification } from '../../types';
 import { useToast } from '../../shared/components/toast';
 import Card, { CardHeader, CardTitle, CardContent } from '../../shared/components/card';
@@ -28,8 +28,8 @@ export const NotificationsFeed: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast('Notification marked as read', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to update notification', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to update notification'), 'error');
     }
   });
 

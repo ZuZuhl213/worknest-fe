@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,6 +7,7 @@ import { useAuth } from './auth-context';
 import { useToast } from '../../shared/components/toast';
 import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
+import { getApiErrorMessage, getApiFieldErrors } from '../../shared/api/client';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,28 +20,36 @@ export const LoginForm: React.FC = () => {
   const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   const onSubmit = async (data: LoginSchema) => {
-    setLoading(true);
+    clearErrors('root.server');
     try {
       await login(data.email, data.password);
       toast('Welcome back to WorkNest!', 'success');
       navigate('/workspaces');
-    } catch (err: any) {
-      const msg = err.response?.data?.message 
-        || (!err.response ? 'Unable to connect to the server. Please try again later.' : 'Invalid email or password');
-      toast(msg, 'error');
-    } finally {
-      setLoading(false);
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, 'Invalid email or password');
+      const fieldErrors = getApiFieldErrors(error);
+      Object.entries(fieldErrors).forEach(([field, fieldMessage]) => {
+        if (field === 'email' || field === 'password') {
+          setError(field, { type: 'server', message: fieldMessage });
+        }
+      });
+      setError('root.server', { type: 'server', message });
+      toast(message, 'error');
     }
   };
 
@@ -66,8 +75,13 @@ export const LoginForm: React.FC = () => {
           error={errors.password?.message}
           {...register('password')}
         />
+        {errors.root?.server?.message && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+            {errors.root.server.message}
+          </p>
+        )}
         
-        <Button type="submit" className="w-full mt-2 cursor-pointer" isLoading={loading}>
+        <Button type="submit" className="w-full mt-2 cursor-pointer" isLoading={isSubmitting}>
           Sign In
         </Button>
       </form>

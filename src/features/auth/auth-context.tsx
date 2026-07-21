@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CurrentUser, AuthResponse } from '../../types';
-import apiClient from '../../shared/api/client';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { AuthResponse, CurrentUser } from '../../types';
+import apiClient, {
+  fetchCsrfToken,
+  refreshAccessToken,
+  setAccessToken,
+} from '../../shared/api/client';
 
 interface AuthContextType {
   user: CurrentUser | null;
@@ -10,142 +15,110 @@ interface AuthContextType {
   register: (email: string, password: string, fullName: string) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateCurrentUser: (user: CurrentUser) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await apiClient.get<CurrentUser>('/api/auth/me');
-      setUser(response.data);
-      setIsAuthenticated(true);
-    } catch (error) {
-      // Clear credentials if token is invalid
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const clearSession = useCallback(() => {
+    setAccessToken(null);
+    queryClient.clear();
+    setUser(null);
+    setIsAuthenticated(false);
+  }, [queryClient]);
 
-  useEffect(() => {
-    const hasToken = localStorage.getItem('accessToken');
-    if (hasToken) {
-      fetchCurrentUser();
-    } else {
-      setIsLoading(false);
-    }
-
-    const handleLogoutEvent = () => {
-      setUser(null);
-      setIsAuthenticated(false);
-      setIsLoading(false);
-    };
-
-    window.addEventListener('auth-logout', handleLogoutEvent);
-    return () => {
-      window.removeEventListener('auth-logout', handleLogoutEvent);
-    };
+  const loadCurrentUser = useCallback(async () => {
+    const response = await apiClient.get<CurrentUser>('/api/auth/me');
+    setUser(response.data);
+    setIsAuthenticated(true);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const response = await apiClient.post<AuthResponse>('/api/auth/login', { email, password });
-      const { accessToken, refreshToken } = response.data;
-      
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      
-      // Map AuthUserResponse to CurrentUser
-      const authUser = response.data.user;
-      const currentUser: CurrentUser = {
-        id: authUser.id,
-        email: authUser.email,
-        fullName: authUser.fullName,
-        avatarUrl: authUser.avatarUrl,
-        emailVerified: authUser.emailVerified,
-        isActive: true,
-      };
-      
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      return response.data;
-    } catch (error) {
-      setIsAuthenticated(false);
-      throw error;
-    } finally {
+  useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        await refreshAccessToken();
+        await loadCurrentUser();
+      } catch {
+        clearSession();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void bootstrap();
+    const handleLogoutEvent = () => {
+      clearSession();
       setIsLoading(false);
+    };
+    window.addEventListener('auth-logout', handleLogoutEvent);
+    return () => window.removeEventListener('auth-logout', handleLogoutEvent);
+  }, [clearSession, loadCurrentUser]);
+
+  const establishSession = async (response: AuthResponse) => {
+    setAccessToken(response.accessToken);
+    queryClient.clear();
+    await loadCurrentUser();
+    return response;
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      await fetchCsrfToken();
+      const response = await apiClient.post<AuthResponse>('/api/auth/login', { email, password });
+      return await establishSession(response.data);
+    } catch (error) {
+      clearSession();
+      throw error;
     }
   };
 
   const register = async (email: string, password: string, fullName: string) => {
-    setIsLoading(true);
     try {
-      const response = await apiClient.post<AuthResponse>('/api/auth/register', { 
-        email, 
-        password, 
-        fullName
+      await fetchCsrfToken();
+      const response = await apiClient.post<AuthResponse>('/api/auth/register', {
+        email,
+        password,
+        fullName,
       });
-      const { accessToken, refreshToken } = response.data;
-      
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      
-      const authUser = response.data.user;
-      const currentUser: CurrentUser = {
-        id: authUser.id,
-        email: authUser.email,
-        fullName: authUser.fullName,
-        avatarUrl: authUser.avatarUrl,
-        emailVerified: authUser.emailVerified,
-        isActive: true,
-      };
-      
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      return response.data;
+      return await establishSession(response.data);
     } catch (error) {
-      setIsAuthenticated(false);
+      clearSession();
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (refreshToken) {
-      try {
-        await apiClient.post('/api/auth/logout', { refreshToken });
-      } catch (e) {
-        // Suppress logout network errors
-      }
+    try {
+      await fetchCsrfToken();
+      await apiClient.post('/api/auth/logout');
+    } catch {
+      // Local logout still succeeds if the network is unavailable.
+    } finally {
+      clearSession();
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    setUser(null);
-    setIsAuthenticated(false);
   };
 
   const refreshUser = async () => {
     try {
-      const response = await apiClient.get<CurrentUser>('/api/auth/me');
-      setUser(response.data);
-    } catch (error) {
-      // Do not force logout on background profile checks
+      await loadCurrentUser();
+    } catch {
+      // The response interceptor handles expired sessions.
     }
   };
 
+  const updateCurrentUser = (nextUser: CurrentUser) => {
+    setUser(nextUser);
+    setIsAuthenticated(true);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout, refreshUser, updateCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -153,8 +126,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

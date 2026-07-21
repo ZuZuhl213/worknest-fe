@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../../shared/api/client';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
 import { Workspace } from '../../types';
 import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
@@ -51,8 +51,8 @@ export const WorkspacesPage: React.FC = () => {
       setDescription('');
       navigate(`/workspaces/${newWorkspace.id}/dashboard`);
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to create workspace', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to create workspace'), 'error');
     }
   });
 

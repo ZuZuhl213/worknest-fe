@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../shared/api/client';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
 import { Project } from '../../types';
 import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
@@ -42,8 +42,8 @@ export const ProjectsList: React.FC = () => {
       setDescription('');
       navigate(`/workspaces/${activeWorkspaceId}/projects/${newProj.id}`);
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to create project', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to create project'), 'error');
     }
   });
 

@@ -1,18 +1,26 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth-context';
 import Card, { CardHeader, CardTitle, CardContent } from '../../shared/components/card';
 import Avatar from '../../shared/components/avatar';
 import Badge from '../../shared/components/badge';
 import Button from '../../shared/components/button';
+import Input from '../../shared/components/input';
 import { useToast } from '../../shared/components/toast';
-import apiClient from '../../shared/api/client';
-import { Mail, ShieldAlert, KeyRound, Calendar, Camera } from 'lucide-react';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
+import type { CurrentUser } from '../../types';
+import { Mail, KeyRound, Calendar, Camera, Save } from 'lucide-react';
 
 export const UserProfile: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, updateCurrentUser } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [fullName, setFullName] = useState(user?.fullName || '');
+
+  useEffect(() => {
+    setFullName(user?.fullName || '');
+  }, [user?.fullName]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -32,19 +40,43 @@ export const UserProfile: React.FC = () => {
 
     setIsUploading(true);
     try {
-      await apiClient.post('/api/users/me/avatar', formData, {
+      const response = await apiClient.post<CurrentUser>('/api/users/me/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      await refreshUser();
+      updateCurrentUser(response.data);
       toast('Avatar updated successfully', 'success');
-    } catch (error: any) {
-      toast(error.response?.data?.message || 'Failed to upload avatar', 'error');
+    } catch (error: unknown) {
+      toast(getApiErrorMessage(error, 'Failed to upload avatar'), 'error');
     } finally {
       setIsUploading(false);
       // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleProfileSave = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = fullName.trim();
+    if (!trimmedName) {
+      toast('Full name is required', 'error');
+      return;
+    }
+    if (trimmedName.length > 120) {
+      toast('Full name must be under 120 characters', 'error');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await apiClient.patch<CurrentUser>('/api/users/me', { fullName: trimmedName });
+      updateCurrentUser(response.data);
+      toast('Profile updated successfully', 'success');
+    } catch (error: unknown) {
+      toast(getApiErrorMessage(error, 'Failed to update profile'), 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -118,20 +150,25 @@ export const UserProfile: React.FC = () => {
             </div>
           </div>
 
-          <div className="border-t border-zinc-100 my-1" />
-
-          {/* Missing Features Warning */}
-          <div className="flex gap-3 border border-amber-200 bg-amber-50/30 rounded-lg p-4 text-amber-900">
-            <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-1.5 text-left">
-              <h4 className="font-semibold text-xs text-amber-950">
-                TODO: Profile Editing (Backend Limitation)
-              </h4>
-              <p className="text-xs text-amber-900 leading-relaxed font-normal">
-                Updating your full name, avatar, or password is currently unavailable on the frontend. The Spring Boot backend lacks a <code>PUT</code> or <code>PATCH</code> controller mapping in <code>UserController.java</code>. These interface fields will be activated once profile update endpoints are implemented on the server.
-              </p>
+          <form onSubmit={handleProfileSave} className="border-t border-zinc-100 pt-5 flex flex-col gap-4">
+            <Input
+              label="Full Name"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              maxLength={120}
+            />
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                isLoading={isSaving}
+                disabled={isSaving || fullName.trim() === (user?.fullName || '')}
+                className="inline-flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Save Profile
+              </Button>
             </div>
-          </div>
+          </form>
         </CardContent>
       </Card>
     </div>

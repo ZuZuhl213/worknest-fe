@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../shared/api/client';
-import { Project, Task, PagedResponse } from '../../types';
+import { Project, Task, PagedResponse, WorkspaceTask } from '../../types';
 import { useAuth } from '../auth/auth-context';
 import { useToast } from '../../shared/components/toast';
 import Card, { CardHeader, CardTitle, CardContent } from '../../shared/components/card';
 import Badge from '../../shared/components/badge';
-import TaskDetailDrawer from './task-detail-drawer';
+import TaskDetailModal from './task-detail-modal';
 import { CheckSquare, Calendar, ChevronRight, AlertCircle, PlayCircle, ClipboardList } from 'lucide-react';
 
 export const MyTasksView: React.FC = () => {
@@ -28,7 +28,7 @@ export const MyTasksView: React.FC = () => {
   });
 
   // 2. Fetch tasks assigned to current user across all projects in workspace
-  const { data: allUserTasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
+  const { data: allUserTasks = [], isLoading: isTasksLoading } = useQuery<WorkspaceTask[]>({
     queryKey: ['my-tasks', activeWorkspaceId, projects],
     queryFn: async () => {
       if (projects.length === 0) return [];
@@ -44,7 +44,8 @@ export const MyTasksView: React.FC = () => {
             projectName: proj.name,
             projectKey: proj.projectKey
           }));
-        } catch (e) {
+        } catch {
+          toast(`Failed to load tasks for ${proj.name}`, 'error');
           return [];
         }
       });
@@ -117,11 +118,11 @@ export const MyTasksView: React.FC = () => {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <span className="text-[10px] text-zinc-400 font-mono shrink-0 select-none">
-                      {(task as any).projectKey}-{task.taskNumber}
+                      {task.projectKey}-{task.taskNumber}
                     </span>
                     <div className="flex flex-col text-left">
                       <span className="text-xs font-semibold text-zinc-900 line-clamp-1">{task.title}</span>
-                      <span className="text-[10px] text-zinc-500">Project: {(task as any).projectName}</span>
+                      <span className="text-[10px] text-zinc-500">Project: {task.projectName}</span>
                     </div>
                   </div>
 
@@ -169,11 +170,11 @@ export const MyTasksView: React.FC = () => {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <span className="text-[10px] text-zinc-400 font-mono shrink-0 select-none">
-                      {(task as any).projectKey}-{task.taskNumber}
+                      {task.projectKey}-{task.taskNumber}
                     </span>
                     <div className="flex flex-col text-left">
                       <span className="text-xs font-semibold text-zinc-900 line-through text-zinc-500 line-clamp-1">{task.title}</span>
-                      <span className="text-[10px] text-zinc-400">Project: {(task as any).projectName}</span>
+                      <span className="text-[10px] text-zinc-400">Project: {task.projectName}</span>
                     </div>
                   </div>
 
@@ -201,11 +202,11 @@ export const MyTasksView: React.FC = () => {
 
       {/* Task Drawer overlay view */}
       {activeTaskId && activeProjId && (
-        <TaskDetailDrawer
+        <TaskDetailModal
           taskId={activeTaskId}
           workspaceId={activeWorkspaceId}
           projectId={activeProjId}
-          projectKey={(allUserTasks.find(t => t.id === activeTaskId) as any)?.projectKey || ''}
+          projectKey={allUserTasks.find(t => t.id === activeTaskId)?.projectKey || ''}
           isOpen={!!activeTaskId}
           onClose={() => {
             setActiveTaskId(null);

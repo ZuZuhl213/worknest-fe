@@ -1,5 +1,5 @@
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import AuthLayout from '../shared/layouts/auth-layout';
 import DashboardLayout from '../shared/layouts/dashboard-layout';
 import LoginForm from '../features/auth/login-form';
@@ -13,19 +13,32 @@ import NotificationsFeed from '../features/notification/notifications-feed';
 import UserProfile from '../features/auth/user-profile';
 import { useAuth } from '../features/auth/auth-context';
 
-// Root redirect handler
+const AuthLoadingScreen: React.FC = () => (
+  <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+    <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
+  </div>
+);
+
 const RootRedirect: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
-        <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
-      </div>
-    );
-  }
+  if (isLoading) return <AuthLoadingScreen />;
 
   return isAuthenticated ? <Navigate to="/workspaces" replace /> : <Navigate to="/login" replace />;
+};
+
+const GuestOnlyRoute: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return <AuthLoadingScreen />;
+  return isAuthenticated ? <Navigate to="/workspaces" replace /> : <AuthLayout />;
+};
+
+const ProtectedRoute: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return <AuthLoadingScreen />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export const router = createBrowserRouter([
@@ -34,7 +47,7 @@ export const router = createBrowserRouter([
     element: <RootRedirect />,
   },
   {
-    element: <AuthLayout />,
+    element: <GuestOnlyRoute />,
     children: [
       {
         path: 'login',
@@ -47,36 +60,41 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: 'workspaces',
-    element: <WorkspacesPage />,
-  },
-  {
-    path: 'workspaces/:workspaceId',
-    element: <DashboardLayout />,
+    element: <ProtectedRoute />,
     children: [
       {
-        path: 'dashboard',
-        element: <WorkspaceDashboard />,
+        path: 'workspaces',
+        element: <WorkspacesPage />,
       },
       {
-        path: 'projects',
-        element: <ProjectsList />,
-      },
-      {
-        path: 'projects/:projectId',
-        element: <ProjectDetailView />,
-      },
-      {
-        path: 'tasks',
-        element: <MyTasksView />,
-      },
-      {
-        path: 'notifications',
-        element: <NotificationsFeed />,
-      },
-      {
-        path: 'profile',
-        element: <UserProfile />,
+        path: 'workspaces/:workspaceId',
+        element: <DashboardLayout />,
+        children: [
+          {
+            path: 'dashboard',
+            element: <WorkspaceDashboard />,
+          },
+          {
+            path: 'projects',
+            element: <ProjectsList />,
+          },
+          {
+            path: 'projects/:projectId',
+            element: <ProjectDetailView />,
+          },
+          {
+            path: 'tasks',
+            element: <MyTasksView />,
+          },
+          {
+            path: 'notifications',
+            element: <NotificationsFeed />,
+          },
+          {
+            path: 'profile',
+            element: <UserProfile />,
+          },
+        ],
       },
     ],
   },

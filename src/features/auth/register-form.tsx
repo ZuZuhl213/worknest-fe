@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,15 +7,16 @@ import { useAuth } from './auth-context';
 import { useToast } from '../../shared/components/toast';
 import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
+import { getApiErrorMessage, getApiFieldErrors } from '../../shared/api/client';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   fullName: z.string().min(1, 'Full name is required').max(120, 'Full name must be under 120 characters'),
   password: z.string()
-    .min(6, 'Password must be at least 6 characters')
-    .max(255)
-    .regex(/[a-zA-Z]/, 'Password must contain at least one letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be at most 128 characters')
+    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+    .regex(/\d/, 'Password must contain at least one number'),
 });
 
 type RegisterSchema = z.infer<typeof registerSchema>;
@@ -24,18 +25,23 @@ export const RegisterForm: React.FC = () => {
   const { register: signup } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      password: '',
+    },
   });
 
   const onSubmit = async (data: RegisterSchema) => {
-    setLoading(true);
+    clearErrors('root.server');
     try {
       await signup(
         data.email, 
@@ -44,11 +50,16 @@ export const RegisterForm: React.FC = () => {
       );
       toast('Registration successful!', 'success');
       navigate('/workspaces');
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to register account';
-      toast(msg, 'error');
-    } finally {
-      setLoading(false);
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, 'Failed to register account');
+      const fieldErrors = getApiFieldErrors(error);
+      Object.entries(fieldErrors).forEach(([field, fieldMessage]) => {
+        if (field === 'email' || field === 'password' || field === 'fullName') {
+          setError(field, { type: 'server', message: fieldMessage });
+        }
+      });
+      setError('root.server', { type: 'server', message });
+      toast(message, 'error');
     }
   };
 
@@ -77,13 +88,18 @@ export const RegisterForm: React.FC = () => {
         <Input
           label="Password"
           type="password"
-          placeholder="•••••••• (6+ characters)"
+          placeholder="At least 8 characters, letters and numbers"
           error={errors.password?.message}
           {...register('password')}
         />
+        {errors.root?.server?.message && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+            {errors.root.server.message}
+          </p>
+        )}
 
         
-        <Button type="submit" className="w-full mt-2 cursor-pointer" isLoading={loading}>
+        <Button type="submit" className="w-full mt-2 cursor-pointer" isLoading={isSubmitting}>
           Register Account
         </Button>
       </form>

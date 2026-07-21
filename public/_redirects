@@ -1,0 +1,6 @@
+# Cloudflare Pages Redirects
+# Forward all /api/* requests to your production backend API.
+# Uncomment and replace the URL below with your actual deployed backend API URL
+# before enabling production deploys.
+
+# /api/* https://api.worknest.com/api/:splat 200

@@ -1,4 +1,5 @@
 export type Role = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type SystemRole = 'USER' | 'ADMIN';
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 
@@ -10,6 +11,7 @@ export interface AuthUser {
   fullName: string;
   avatarUrl?: string;
   emailVerified: boolean;
+  systemRole: SystemRole;
 }
 
 export interface CurrentUser {
@@ -19,6 +21,7 @@ export interface CurrentUser {
   avatarUrl?: string;
   emailVerified: boolean;
   isActive: boolean;
+  systemRole: SystemRole;
   lastLoginAt?: string;
 }
 
@@ -26,8 +29,6 @@ export interface AuthResponse {
   tokenType: string;
   accessToken: string;
   accessTokenExpiresAt: string;
-  refreshToken: string;
-  refreshTokenExpiresAt: string;
   user: AuthUser;
 }
 
@@ -38,6 +39,8 @@ export interface User {
   avatarUrl?: string;
   isActive: boolean;
   emailVerified: boolean;
+  systemRole: SystemRole;
+  deactivatedAt?: string;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -95,6 +98,25 @@ export interface Project {
   updatedAt: string;
 }
 
+export type ProjectRole = 'LEAD' | 'MEMBER' | 'VIEWER';
+
+export interface ProjectMemberUser {
+  id: number;
+  email: string;
+  fullName: string;
+  avatarUrl?: string;
+}
+
+export interface ProjectMember {
+  id: number;
+  projectId: number;
+  user: ProjectMemberUser;
+  role: ProjectRole;
+  addedBy?: ProjectMemberUser;
+  joinedAt: string;
+  createdAt: string;
+}
+
 export interface TaskUser {
   id: number;
   email: string;
@@ -116,6 +138,11 @@ export interface Task {
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WorkspaceTask extends Task {
+  projectName: string;
+  projectKey: string;
 }
 
 export interface TaskCommentAuthor {

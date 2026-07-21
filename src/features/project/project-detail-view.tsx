@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../shared/api/client';
-import { Project, Task, WorkspaceMember, TaskStatus, TaskPriority, PagedResponse } from '../../types';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
+import { Project, Task, WorkspaceMember, TaskStatus, TaskPriority, PagedResponse, ProjectMember, ProjectRole } from '../../types';
 import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
 import Modal from '../../shared/components/modal';
 import Badge from '../../shared/components/badge';
 import Avatar from '../../shared/components/avatar';
 import { useToast } from '../../shared/components/toast';
-import TaskDetailDrawer from '../task/task-detail-drawer';
+import { useAuth } from '../auth/auth-context';
+import TaskDetailModal from '../task/task-detail-modal';
 import { 
   Plus, 
   Search, 
@@ -18,7 +19,10 @@ import {
   Clock, 
   AlertCircle, 
   ListFilter,
-  UserCheck
+  UserCheck,
+  Users,
+  UserPlus,
+  Trash2
 } from 'lucide-react';
 
 const STATUS_COLUMNS: { label: string; value: TaskStatus; bg: string; text: string }[] = [
@@ -57,6 +61,13 @@ export const ProjectDetailView: React.FC = () => {
   const [newTaskAssignee, setNewTaskAssignee] = useState<string>('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
 
+  // Project members state
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
+  const [addMemberEmail, setAddMemberEmail] = useState('');
+  const [addMemberRole, setAddMemberRole] = useState<ProjectRole>('MEMBER');
+
+  const { user } = useAuth();
+
   // 1. Fetch project meta
   const { data: project } = useQuery<Project>({
     queryKey: ['project', activeWorkspaceId, activeProjectId],
@@ -75,7 +86,12 @@ export const ProjectDetailView: React.FC = () => {
   const { data: taskResponse, isLoading: isTasksLoading } = useQuery<PagedResponse<Task>>({
     queryKey: ['tasks', activeWorkspaceId, activeProjectId, search, selectedPriority, selectedAssignee],
     queryFn: () => {
-      const params: Record<string, any> = {
+      const params: {
+        size: number;
+        search?: string;
+        priority?: string;
+        assigneeId?: string;
+      } = {
         size: 100, // Fetch up to 100 tasks for board display
         search: search.trim() || undefined,
         priority: selectedPriority || undefined,
@@ -88,6 +104,61 @@ export const ProjectDetailView: React.FC = () => {
   });
 
   const tasks = taskResponse?.content || [];
+
+  // 4. Fetch project members
+  const { data: projectMembers = [] } = useQuery<ProjectMember[]>({
+    queryKey: ['project-members', activeWorkspaceId, activeProjectId],
+    queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects/${activeProjectId}/members`).then(res => res.data),
+    enabled: !!activeWorkspaceId && !!activeProjectId,
+  });
+
+  // Identify user roles
+  const currentWorkspaceMember = members.find(m => m.user.id === user?.id);
+  const isWorkspaceAdminOrOwner = currentWorkspaceMember?.role === 'OWNER' || currentWorkspaceMember?.role === 'ADMIN';
+  const currentProjectMember = projectMembers.find(pm => pm.user.id === user?.id);
+  const isProjectLead = currentProjectMember?.role === 'LEAD';
+  const canManageProjectMembers = isWorkspaceAdminOrOwner || isProjectLead;
+
+  // Add project member mutation
+  const addProjectMemberMutation = useMutation({
+    mutationFn: (data: { email: string; role: ProjectRole }) =>
+      apiClient.post<ProjectMember>(`/api/workspaces/${activeWorkspaceId}/projects/${activeProjectId}/members`, data).then(res => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-members', activeWorkspaceId, activeProjectId] });
+      toast('Member added to project successfully!', 'success');
+      setAddMemberEmail('');
+      setAddMemberRole('MEMBER');
+    },
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to add member to project'), 'error');
+    }
+  });
+
+  // Update project member role mutation
+  const updateProjectRoleMutation = useMutation({
+    mutationFn: (data: { memberId: number; role: ProjectRole }) =>
+      apiClient.patch<ProjectMember>(`/api/workspaces/${activeWorkspaceId}/projects/${activeProjectId}/members/${data.memberId}/role`, { role: data.role }).then(res => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-members', activeWorkspaceId, activeProjectId] });
+      toast('Project member role updated!', 'success');
+    },
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to update project role'), 'error');
+    }
+  });
+
+  // Remove project member mutation
+  const removeProjectMemberMutation = useMutation({
+    mutationFn: (memberId: number) =>
+      apiClient.delete(`/api/workspaces/${activeWorkspaceId}/projects/${activeProjectId}/members/${memberId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-members', activeWorkspaceId, activeProjectId] });
+      toast('Member removed from project', 'success');
+    },
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to remove member from project'), 'error');
+    }
+  });
 
   // Create task mutation
   const createTaskMutation = useMutation({
@@ -103,8 +174,8 @@ export const ProjectDetailView: React.FC = () => {
       setNewTaskAssignee('');
       setNewTaskDueDate('');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to create task', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to create task'), 'error');
     }
   });
 
@@ -144,12 +215,12 @@ export const ProjectDetailView: React.FC = () => {
 
       return { previousTasksResponse, queryKey };
     },
-    onError: (err: any, variables, context) => {
+    onError: (error: unknown, _variables, context) => {
       // Rollback to previous value on error
       if (context?.previousTasksResponse && context?.queryKey) {
         queryClient.setQueryData(context.queryKey, context.previousTasksResponse);
       }
-      toast(err.response?.data?.message || 'Failed to update task status', 'error');
+      toast(getApiErrorMessage(error, 'Failed to update task status'), 'error');
     },
     onSuccess: () => {
       toast('Task status updated successfully!', 'success');
@@ -235,13 +306,23 @@ export const ProjectDetailView: React.FC = () => {
           <h1 className="text-xl font-semibold text-zinc-900">{project?.name || 'Kanban Board'}</h1>
           <p className="text-xs text-zinc-500 mt-1">Manage, sort, and organize task tickets inside Project #{project?.projectKey}</p>
         </div>
-        <Button 
-          onClick={() => setCreateModalOpen(true)}
-          className="flex items-center gap-1.5 text-xs font-medium cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          Create Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => setMembersModalOpen(true)}
+            variant="outline"
+            className="flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+          >
+            <Users className="h-4 w-4" />
+            Project Members
+          </Button>
+          <Button 
+            onClick={() => setCreateModalOpen(true)}
+            className="flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Create Task
+          </Button>
+        </div>
       </div>
 
       {/* Filter Controls Row */}
@@ -395,7 +476,7 @@ export const ProjectDetailView: React.FC = () => {
 
       {/* Slide-out Task Detail Drawer panel */}
       {activeTaskId && (
-        <TaskDetailDrawer
+        <TaskDetailModal
           taskId={activeTaskId}
           workspaceId={activeWorkspaceId}
           projectId={activeProjectId}
@@ -403,7 +484,6 @@ export const ProjectDetailView: React.FC = () => {
           isOpen={!!activeTaskId}
           onClose={() => {
             setActiveTaskId(null);
-            // Refresh tasks listing
             queryClient.invalidateQueries({ queryKey: ['tasks', activeWorkspaceId, activeProjectId] });
           }}
         />
@@ -486,6 +566,141 @@ export const ProjectDetailView: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Project Members Modal Dialog */}
+      <Modal
+        isOpen={membersModalOpen}
+        onClose={() => setMembersModalOpen(false)}
+        title="Project Members Management"
+      >
+        <div className="flex flex-col gap-6 text-left">
+          {/* Add member section (only leads/admins can see) */}
+          {canManageProjectMembers && (
+            <div className="flex flex-col gap-3 pb-4 border-b border-zinc-100">
+              <h3 className="text-xs font-semibold text-zinc-900 flex items-center gap-1">
+                <UserPlus className="h-3.5 w-3.5" />
+                Add Workspace Member to Project
+              </h3>
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!addMemberEmail) return;
+                  addProjectMemberMutation.mutate({ email: addMemberEmail, role: addMemberRole });
+                }}
+                className="flex flex-col sm:flex-row gap-3 items-end"
+              >
+                <div className="flex-1 flex flex-col gap-1.5 w-full">
+                  <label className="text-[10px] font-medium text-zinc-500">Select Member</label>
+                  <select
+                    value={addMemberEmail}
+                    onChange={e => setAddMemberEmail(e.target.value)}
+                    className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">-- Choose a colleague --</option>
+                    {members
+                      .filter(wm => !projectMembers.some(pm => pm.user.id === wm.user.id))
+                      .map(m => (
+                        <option key={m.user.id} value={m.user.email}>
+                          {m.user.fullName} ({m.user.email})
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+                <div className="w-full sm:w-[120px] flex flex-col gap-1.5">
+                  <label className="text-[10px] font-medium text-zinc-500">Project Role</label>
+                  <select
+                    value={addMemberRole}
+                    onChange={e => setAddMemberRole(e.target.value as ProjectRole)}
+                    className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="MEMBER">MEMBER</option>
+                    <option value="LEAD">LEAD</option>
+                    <option value="VIEWER">VIEWER</option>
+                  </select>
+                </div>
+                <Button 
+                  type="submit"
+                  size="sm"
+                  className="cursor-pointer shrink-0"
+                  isLoading={addProjectMemberMutation.isPending}
+                  disabled={!addMemberEmail}
+                >
+                  Add
+                </Button>
+              </form>
+            </div>
+          )}
+
+          {/* Members List */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-semibold text-zinc-900 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              Active Project Members ({projectMembers.length})
+            </h3>
+            <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+              {projectMembers.map(member => (
+                <div key={member.id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-zinc-100 bg-zinc-50/50">
+                  <div className="flex items-center gap-2.5 truncate">
+                    <Avatar name={member.user.fullName} size="sm" />
+                    <div className="flex flex-col truncate">
+                      <span className="text-xs font-semibold text-zinc-900 truncate">{member.user.fullName}</span>
+                      <span className="text-[10px] text-zinc-500 truncate">{member.user.email}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    {canManageProjectMembers && member.user.id !== user?.id ? (
+                      <select
+                        value={member.role}
+                        onChange={e => updateProjectRoleMutation.mutate({ memberId: member.id, role: e.target.value as ProjectRole })}
+                        className="text-[10px] rounded border border-zinc-200 bg-white p-0.5 text-zinc-700 focus:outline-none cursor-pointer"
+                      >
+                        <option value="LEAD">LEAD</option>
+                        <option value="MEMBER">MEMBER</option>
+                        <option value="VIEWER">VIEWER</option>
+                      </select>
+                    ) : (
+                      <Badge variant={member.role === 'LEAD' ? 'secondary' : 'default'} className="text-[9px] px-1.5 py-0.5">
+                        {member.role}
+                      </Badge>
+                    )}
+                    
+                    {canManageProjectMembers && member.user.id !== user?.id && (
+                      <button 
+                        onClick={() => {
+                          if (confirm(`Remove ${member.user.fullName} from this project?`)) {
+                            removeProjectMemberMutation.mutate(member.id);
+                          }
+                        }}
+                        className="text-zinc-400 hover:text-red-600 p-0.5 rounded cursor-pointer transition-colors"
+                        title="Remove from project"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {projectMembers.length === 0 && (
+                <div className="text-center py-6 text-zinc-400 text-xs italic">
+                  No direct members. Workspace admins/owners have full access.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="cursor-pointer"
+              onClick={() => setMembersModalOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

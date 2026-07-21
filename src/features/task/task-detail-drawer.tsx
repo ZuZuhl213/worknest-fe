@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../shared/api/client';
+import apiClient, { getApiErrorMessage } from '../../shared/api/client';
 import { Task, WorkspaceMember, TaskComment, TaskStatus, TaskPriority, Attachment } from '../../types';
 import Drawer from '../../shared/components/drawer';
 import Button from '../../shared/components/button';
@@ -17,7 +17,10 @@ import {
   Check,
   X,
   Paperclip,
-  Download
+  Download,
+  ZoomIn,
+  FileText,
+  FileImage
 } from 'lucide-react';
 
 interface TaskDetailDrawerProps {
@@ -51,6 +54,15 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
   const [commentText, setCommentText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+
+  // Lightbox state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxName, setLightboxName] = useState<string>('');
+
+  const isImage = (contentType: string, fileName: string) => {
+    if (contentType?.startsWith('image/')) return true;
+    return /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(fileName);
+  };
 
   // 1. Fetch task details
   const { data: task, isLoading: isTaskLoading } = useQuery<Task>({
@@ -99,8 +111,8 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId, projectId] });
       toast('Task updated successfully!', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to update task', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to update task'), 'error');
     }
   });
 
@@ -111,8 +123,8 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       toast('Task deleted', 'success');
       onClose();
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to delete task', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to delete task'), 'error');
     }
   });
 
@@ -125,8 +137,8 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       setCommentText('');
       toast('Comment posted!', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to post comment', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to post comment'), 'error');
     }
   });
 
@@ -139,8 +151,8 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       setEditingCommentText('');
       toast('Comment updated', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to update comment', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to update comment'), 'error');
     }
   });
 
@@ -151,8 +163,8 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       queryClient.invalidateQueries({ queryKey: ['comments', workspaceId, projectId, taskId] });
       toast('Comment deleted', 'success');
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to delete comment', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to delete comment'), 'error');
     }
   });
 
@@ -170,8 +182,8 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
       toast('Attachment uploaded', 'success');
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to upload attachment', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to upload attachment'), 'error');
     }
   });
 
@@ -229,6 +241,7 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
   if (!task) return null;
 
   return (
+    <>
     <Drawer 
       isOpen={isOpen} 
       onClose={onClose}
@@ -326,21 +339,56 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
             </div>
 
             {attachments.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {attachments.map(att => (
-                  <div key={att.id} className="border border-zinc-200 rounded-md p-2 flex flex-col gap-2 items-start text-left bg-zinc-50/50 hover:bg-zinc-50 transition-colors group">
-                    <div className="flex items-center gap-2 w-full overflow-hidden">
-                      <div className="w-8 h-8 rounded bg-indigo-100 flex items-center justify-center shrink-0">
-                        <Paperclip className="h-4 w-4 text-indigo-600" />
+                  <div key={att.id} className="relative group rounded-lg overflow-hidden border border-zinc-200 bg-zinc-50 hover:border-indigo-300 transition-all shadow-sm">
+                    {isImage(att.contentType, att.fileName) ? (
+                      // Image thumbnail
+                      <>
+                        <div
+                          className="relative cursor-zoom-in"
+                          onClick={() => { setLightboxUrl(att.url); setLightboxName(att.fileName); }}
+                        >
+                          <img
+                            src={att.url}
+                            alt={att.fileName}
+                            className="w-full h-24 object-cover transition-transform duration-200 group-hover:scale-105"
+                            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 drop-shadow transition-opacity" />
+                          </div>
+                        </div>
+                        <div className="px-2 py-1.5 flex items-center justify-between gap-1">
+                          <span className="text-[10px] text-zinc-600 truncate font-medium" title={att.fileName}>{att.fileName}</span>
+                          <a href={att.url} download={att.fileName} target="_blank" rel="noopener noreferrer"
+                            className="shrink-0 text-zinc-400 hover:text-indigo-600 transition-colors"
+                            onClick={e => e.stopPropagation()}
+                            title="Download"
+                          >
+                            <Download className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      // Non-image file
+                      <div className="flex flex-col gap-1 p-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded bg-indigo-100 flex items-center justify-center shrink-0">
+                            <FileText className="h-4 w-4 text-indigo-600" />
+                          </div>
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-xs font-medium text-zinc-700 truncate" title={att.fileName}>{att.fileName}</span>
+                            <span className="text-[10px] text-zinc-400">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                          </div>
+                        </div>
+                        <a href={att.url} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+                        >
+                          <Download className="h-3 w-3" /> Download
+                        </a>
                       </div>
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="text-xs font-medium text-zinc-700 truncate" title={att.fileName}>{att.fileName}</span>
-                        <span className="text-[10px] text-zinc-400">{(att.fileSize / 1024).toFixed(1)} KB</span>
-                      </div>
-                    </div>
-                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Download className="h-3 w-3" /> Download
-                    </a>
+                    )}
                   </div>
                 ))}
               </div>
@@ -556,6 +604,58 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
         </div>
       </div>
     </Drawer>
+
+    {/* Lightbox Overlay */}
+    {lightboxUrl && (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}
+        onClick={() => setLightboxUrl(null)}
+      >
+        <div
+          className="relative max-w-5xl max-h-full flex flex-col items-center gap-3"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Toolbar */}
+          <div className="flex items-center justify-between w-full px-1">
+            <span className="text-white/80 text-sm font-medium truncate max-w-xs">{lightboxName}</span>
+            <div className="flex items-center gap-2">
+              <a
+                href={lightboxUrl}
+                download={lightboxName}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-md px-3 py-1.5 transition-colors"
+                onClick={e => e.stopPropagation()}
+              >
+                <Download className="h-3.5 w-3.5" /> Download
+              </a>
+              <button
+                onClick={() => setLightboxUrl(null)}
+                className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-md p-1.5 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          {/* Image */}
+          <img
+            src={lightboxUrl}
+            alt={lightboxName}
+            className="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain"
+            style={{ animation: 'lightboxIn 0.2s ease' }}
+          />
+          <p className="text-white/40 text-xs">Click outside to close</p>
+        </div>
+        <style>{`
+          @keyframes lightboxIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to   { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
+      </div>
+    )}
+    </>
   );
 };
 export default TaskDetailDrawer;

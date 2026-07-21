@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Navigate, Outlet, useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../features/auth/auth-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../api/client';
+import apiClient, { getApiErrorMessage } from '../api/client';
 import { Workspace, Project, Notification } from '../../types';
 import Avatar from '../components/avatar';
 import Button from '../components/button';
@@ -20,7 +20,11 @@ import {
   LogOut, 
   Building2,
   Menu,
-  X
+  X,
+  Check,
+  CheckCheck,
+  Clock,
+  Inbox
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
@@ -37,6 +41,19 @@ export const DashboardLayout: React.FC = () => {
   const [newWorkspaceSlug, setNewWorkspaceSlug] = useState('');
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target as Node)) {
+        setShowNotifDropdown(false);
+      }
+    };
+    if (showNotifDropdown) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showNotifDropdown]);
 
   const slugify = (text: string) => {
     return text
@@ -68,7 +85,26 @@ export const DashboardLayout: React.FC = () => {
     queryKey: ['notifications'],
     queryFn: () => apiClient.get('/api/notifications').then(res => res.data),
     enabled: isAuthenticated,
-    refetchInterval: 15000, // Poll notifications every 15s
+    refetchInterval: 15000,
+  });
+
+  // Mark single notification as read
+  const readNotifMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiClient.patch<Notification>(`/api/notifications/${id}/read`).then(r => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  // Mark all as read
+  const readAllNotifMutation = useMutation({
+    mutationFn: async () => {
+      const unread = notifications.filter(n => !n.read);
+      await Promise.all(unread.map(n => apiClient.patch(`/api/notifications/${n.id}/read`)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast('All notifications marked as read', 'success');
+    },
   });
 
   // Create workspace mutation
@@ -84,8 +120,8 @@ export const DashboardLayout: React.FC = () => {
       setNewWorkspaceDesc('');
       navigate(`/workspaces/${newWorkspace.id}/dashboard`);
     },
-    onError: (err: any) => {
-      toast(err.response?.data?.message || 'Failed to create workspace', 'error');
+    onError: (error: unknown) => {
+      toast(getApiErrorMessage(error, 'Failed to create workspace'), 'error');
     }
   });
 
@@ -128,6 +164,7 @@ export const DashboardLayout: React.FC = () => {
   ] : [];
 
   return (
+    <>
     <div className="flex h-screen w-screen bg-zinc-50/50 overflow-hidden font-sans">
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex md:flex-col md:w-60 shrink-0 border-r border-zinc-200 bg-white">
@@ -273,16 +310,109 @@ export const DashboardLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative flex items-center">
-              <Link 
-                to={activeWorkspaceId ? `/workspaces/${activeWorkspaceId}/notifications` : '#'}
-                className="relative p-1.5 rounded-full hover:bg-zinc-50 text-zinc-400 hover:text-zinc-700 cursor-pointer"
+          <div className="relative flex items-center" ref={notifDropdownRef}>
+              <button
+                onClick={() => setShowNotifDropdown(v => !v)}
+                className="relative p-1.5 rounded-full hover:bg-zinc-50 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors"
+                title="Notifications"
               >
-                <Bell className="h-4.5 w-4.5" />
+                <Bell className="h-[18px] w-[18px]" />
                 {unreadNotifications > 0 && (
-                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
+                  <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-red-500 ring-1 ring-white" />
                 )}
-              </Link>
+              </button>
+
+              {/* Notification Dropdown */}
+              {showNotifDropdown && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-80 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 flex flex-col overflow-hidden"
+                  style={{ animation: 'notifDropIn 0.15s cubic-bezier(0.16,1,0.3,1)' }}
+                >
+                  {/* Dropdown header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+                    <div className="flex items-center gap-2">
+                      <Inbox className="h-4 w-4 text-indigo-600" />
+                      <span className="text-sm font-semibold text-zinc-900">Notifications</span>
+                      {unreadNotifications > 0 && (
+                        <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none">
+                          {unreadNotifications}
+                        </span>
+                      )}
+                    </div>
+                    {unreadNotifications > 0 && (
+                      <button
+                        onClick={() => readAllNotifMutation.mutate()}
+                        disabled={readAllNotifMutation.isPending}
+                        className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer disabled:opacity-50"
+                      >
+                        <CheckCheck className="h-3.5 w-3.5" />
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Notification list */}
+                  <div className="max-h-80 overflow-y-auto divide-y divide-zinc-100">
+                    {notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 gap-2 text-zinc-400">
+                        <Bell className="h-8 w-8 opacity-30" />
+                        <span className="text-xs italic">All caught up! No notifications.</span>
+                      </div>
+                    ) : (
+                      notifications.slice(0, 20).map(notif => (
+                        <div
+                          key={notif.id}
+                          className={`flex items-start gap-3 px-4 py-3 transition-colors ${
+                            !notif.read
+                              ? 'bg-indigo-50/40 border-l-2 border-indigo-500'
+                              : 'bg-white border-l-2 border-transparent'
+                          }`}
+                        >
+                          {/* Unread dot */}
+                          <div className="mt-1 shrink-0">
+                            <span className={`block w-2 h-2 rounded-full ${
+                              !notif.read ? 'bg-indigo-500' : 'bg-zinc-200'
+                            }`} />
+                          </div>
+                          <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+                            <p className={`text-xs font-semibold leading-snug ${
+                              !notif.read ? 'text-zinc-900' : 'text-zinc-600'
+                            }`}>{notif.title}</p>
+                            <p className="text-[11px] text-zinc-500 leading-snug line-clamp-2">{notif.content}</p>
+                            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-zinc-400">
+                              <Clock className="h-3 w-3" />
+                              {new Date(notif.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                            </div>
+                          </div>
+                          {!notif.read && (
+                            <button
+                              onClick={() => readNotifMutation.mutate(notif.id)}
+                              disabled={readNotifMutation.isPending && readNotifMutation.variables === notif.id}
+                              className="shrink-0 p-1 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 rounded cursor-pointer transition-colors"
+                              title="Mark as read"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Footer link to full notifications page */}
+                  {activeWorkspaceId && (
+                    <div className="border-t border-zinc-100 px-4 py-2.5">
+                      <Link
+                        to={`/workspaces/${activeWorkspaceId}/notifications`}
+                        onClick={() => setShowNotifDropdown(false)}
+                        className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center justify-center gap-1"
+                      >
+                        View all notifications →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-2">
@@ -402,6 +532,13 @@ export const DashboardLayout: React.FC = () => {
         </form>
       </Modal>
     </div>
+      <style>{`
+        @keyframes notifDropIn {
+          from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)   scale(1); }
+        }
+      `}</style>
+    </>
   );
 };
 export default DashboardLayout;
