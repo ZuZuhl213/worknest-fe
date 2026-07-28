@@ -35,10 +35,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-xs sm:max-w-sm w-full">
+      <div 
+        aria-live="polite" 
+        aria-atomic="false" 
+        className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-xs sm:max-w-sm w-full"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
+            role={t.type === 'error' ? 'alert' : 'status'}
+            aria-live={t.type === 'error' ? 'assertive' : 'polite'}
             className={cn(
               'flex items-start gap-3 p-3.5 rounded-lg border bg-white shadow-lg animate-in slide-in-from-bottom duration-200 text-sm font-normal text-zinc-900',
               {
@@ -48,15 +54,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
             )}
           >
-            {t.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />}
-            {t.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />}
-            {t.type === 'info' && <Info className="h-5 w-5 text-indigo-600 shrink-0" />}
+            {t.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600 shrink-0" aria-hidden="true" />}
+            {t.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600 shrink-0" aria-hidden="true" />}
+            {t.type === 'info' && <Info className="h-5 w-5 text-indigo-600 shrink-0" aria-hidden="true" />}
             <span className="flex-1 text-left">{t.message}</span>
             <button
               onClick={() => removeToast(t.id)}
+              aria-label="Dismiss notification"
               className="text-zinc-400 hover:text-zinc-600 cursor-pointer shrink-0"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         ))}

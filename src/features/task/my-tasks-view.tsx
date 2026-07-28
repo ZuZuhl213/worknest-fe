@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../shared/api/client';
-import { Project, Task, PagedResponse, WorkspaceTask } from '../../types';
+import { queryKeys } from '../../shared/api/query-keys';
+import { Project, PagedResponse, WorkspaceTask } from '../../types';
 import { useAuth } from '../auth/auth-context';
 import { useToast } from '../../shared/components/toast';
 import Card, { CardHeader, CardTitle, CardContent } from '../../shared/components/card';
 import Badge from '../../shared/components/badge';
 import TaskDetailModal from './task-detail-modal';
-import { CheckSquare, Calendar, ChevronRight, AlertCircle, PlayCircle, ClipboardList } from 'lucide-react';
+import EmptyState from '../../shared/components/empty-state';
+import ErrorState from '../../shared/components/error-state';
+import { CheckSquare, Calendar, ChevronRight, ClipboardList } from 'lucide-react';
 
 export const MyTasksView: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const activeWorkspaceId = parseInt(workspaceId || '0');
+  const activeWorkspaceId = parseInt(workspaceId || '0', 10);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -22,54 +25,55 @@ export const MyTasksView: React.FC = () => {
 
   // 1. Fetch projects in workspace
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery<Project[]>({
-    queryKey: ['projects', activeWorkspaceId],
-    queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects`).then(res => res.data),
+    queryKey: queryKeys.projects(activeWorkspaceId),
+    queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects`).then((res) => res.data),
     enabled: !!activeWorkspaceId,
   });
 
-  // 2. Fetch tasks assigned to current user across all projects in workspace
-  const { data: allUserTasks = [], isLoading: isTasksLoading } = useQuery<WorkspaceTask[]>({
-    queryKey: ['my-tasks', activeWorkspaceId, projects],
-    queryFn: async () => {
-      if (projects.length === 0) return [];
-      const fetchPromises = projects.map(async (proj) => {
-        try {
-          const res = await apiClient.get<PagedResponse<Task>>(
-            `/api/workspaces/${activeWorkspaceId}/projects/${proj.id}/tasks`, 
-            { params: { assigneeId: user?.id, size: 50 } }
-          );
-          // Append project info to each task for display convenience
-          return res.data.content.map(task => ({
-            ...task,
-            projectName: proj.name,
-            projectKey: proj.projectKey
-          }));
-        } catch {
-          toast(`Failed to load tasks for ${proj.name}`, 'error');
-          return [];
-        }
-      });
-      const results = await Promise.all(fetchPromises);
-      return results.flat();
-    },
-    enabled: !!activeWorkspaceId && projects.length > 0 && !!user?.id,
+  // 2. Fetch tasks assigned to current user across the workspace
+  const {
+    data: allUserTasks = [],
+    isLoading: isTasksLoading,
+    isError,
+    refetch,
+  } = useQuery<WorkspaceTask[]>({
+    queryKey: queryKeys.myTasks(activeWorkspaceId, user?.id),
+    queryFn: () =>
+      apiClient
+        .get<PagedResponse<WorkspaceTask>>(`/api/workspaces/${activeWorkspaceId}/tasks`, {
+          params: { assigneeId: user?.id, size: 100 },
+        })
+        .then((res) => res.data.content)
+        .catch((error) => {
+          toast('Failed to load assigned tasks', 'error');
+          throw error;
+        }),
+    enabled: !!activeWorkspaceId && !!user?.id,
   });
 
   const getPriorityBadgeVariant = (priority: string) => {
     switch (priority) {
-      case 'URGENT': return 'danger';
-      case 'HIGH': return 'warning';
-      case 'MEDIUM': return 'info';
-      default: return 'default';
+      case 'URGENT':
+        return 'danger';
+      case 'HIGH':
+        return 'warning';
+      case 'MEDIUM':
+        return 'info';
+      default:
+        return 'default';
     }
   };
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'DONE': return 'success';
-      case 'REVIEW': return 'warning';
-      case 'IN_PROGRESS': return 'secondary';
-      default: return 'default';
+      case 'DONE':
+        return 'success';
+      case 'REVIEW':
+        return 'warning';
+      case 'IN_PROGRESS':
+        return 'secondary';
+      default:
+        return 'default';
     }
   };
 
@@ -83,11 +87,21 @@ export const MyTasksView: React.FC = () => {
     );
   }
 
-  const openTasks = allUserTasks.filter(t => t.status !== 'DONE');
-  const doneTasks = allUserTasks.filter(t => t.status === 'DONE');
+  if (isError) {
+    return (
+      <ErrorState
+        title="Unable to load assigned tasks"
+        message="An error occurred while fetching your assigned work items."
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const openTasks = allUserTasks.filter((t) => t.status !== 'DONE');
+  const doneTasks = allUserTasks.filter((t) => t.status === 'DONE');
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 text-left">
       {/* Title Header */}
       <div className="flex items-center justify-between text-left">
         <div>
@@ -102,13 +116,15 @@ export const MyTasksView: React.FC = () => {
         {/* Open Tasks List */}
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 p-5">
-            <ClipboardList className="h-4.5 w-4.5 text-indigo-600" />
-            <CardTitle className="text-sm font-semibold text-zinc-950">Active Work Items ({openTasks.length})</CardTitle>
+            <ClipboardList className="h-4.5 w-4.5 text-indigo-600" aria-hidden="true" />
+            <CardTitle className="text-sm font-semibold text-zinc-950">
+              Active Work Items ({openTasks.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0 text-left">
             <div className="divide-y divide-zinc-150">
-              {openTasks.map(task => (
-                <div 
+              {openTasks.map((task) => (
+                <div
                   key={task.id}
                   onClick={() => {
                     setActiveTaskId(task.id);
@@ -121,7 +137,9 @@ export const MyTasksView: React.FC = () => {
                       {task.projectKey}-{task.taskNumber}
                     </span>
                     <div className="flex flex-col text-left">
-                      <span className="text-xs font-semibold text-zinc-900 line-clamp-1">{task.title}</span>
+                      <span className="text-xs font-semibold text-zinc-900 line-clamp-1">
+                        {task.title}
+                      </span>
                       <span className="text-[10px] text-zinc-500">Project: {task.projectName}</span>
                     </div>
                   </div>
@@ -134,17 +152,21 @@ export const MyTasksView: React.FC = () => {
                       {task.priority}
                     </Badge>
                     <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
-                      <Calendar className="h-3.5 w-3.5" />
+                      <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
                       {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
                     </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-300" />
+                    <ChevronRight className="h-4 w-4 text-zinc-300" aria-hidden="true" />
                   </div>
                 </div>
               ))}
 
               {openTasks.length === 0 && (
-                <div className="text-center py-10 text-zinc-400 text-xs italic">
-                  All caught up! You have no active tasks assigned.
+                <div className="p-4">
+                  <EmptyState
+                    icon={ClipboardList}
+                    title="All caught up!"
+                    description="You have no active work items assigned in this workspace."
+                  />
                 </div>
               )}
             </div>
@@ -154,13 +176,15 @@ export const MyTasksView: React.FC = () => {
         {/* Completed Tasks List */}
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 p-5">
-            <CheckSquare className="h-4.5 w-4.5 text-green-600" />
-            <CardTitle className="text-sm font-semibold text-zinc-950">Completed Items ({doneTasks.length})</CardTitle>
+            <CheckSquare className="h-4.5 w-4.5 text-green-600" aria-hidden="true" />
+            <CardTitle className="text-sm font-semibold text-zinc-950">
+              Completed Items ({doneTasks.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0 text-left">
             <div className="divide-y divide-zinc-150">
-              {doneTasks.map(task => (
-                <div 
+              {doneTasks.map((task) => (
+                <div
                   key={task.id}
                   onClick={() => {
                     setActiveTaskId(task.id);
@@ -173,7 +197,9 @@ export const MyTasksView: React.FC = () => {
                       {task.projectKey}-{task.taskNumber}
                     </span>
                     <div className="flex flex-col text-left">
-                      <span className="text-xs font-semibold text-zinc-900 line-through text-zinc-500 line-clamp-1">{task.title}</span>
+                      <span className="text-xs font-semibold text-zinc-900 line-through text-zinc-500 line-clamp-1">
+                        {task.title}
+                      </span>
                       <span className="text-[10px] text-zinc-400">Project: {task.projectName}</span>
                     </div>
                   </div>
@@ -183,16 +209,21 @@ export const MyTasksView: React.FC = () => {
                       DONE
                     </Badge>
                     <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
-                      Completed: {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : 'N/A'}
+                      Completed:{' '}
+                      {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : 'N/A'}
                     </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-300" />
+                    <ChevronRight className="h-4 w-4 text-zinc-300" aria-hidden="true" />
                   </div>
                 </div>
               ))}
 
               {doneTasks.length === 0 && (
-                <div className="text-center py-10 text-zinc-400 text-xs italic">
-                  No completed tasks.
+                <div className="p-4">
+                  <EmptyState
+                    icon={CheckSquare}
+                    title="No completed tasks"
+                    description="Completed items will appear here when you finish tasks."
+                  />
                 </div>
               )}
             </div>
@@ -206,16 +237,20 @@ export const MyTasksView: React.FC = () => {
           taskId={activeTaskId}
           workspaceId={activeWorkspaceId}
           projectId={activeProjId}
-          projectKey={allUserTasks.find(t => t.id === activeTaskId)?.projectKey || ''}
+          projectKey={allUserTasks.find((t) => t.id === activeTaskId)?.projectKey || ''}
+          project={projects.find((project) => project.id === activeProjId)}
           isOpen={!!activeTaskId}
           onClose={() => {
             setActiveTaskId(null);
             setActiveProjId(null);
-            queryClient.invalidateQueries({ queryKey: ['my-tasks', activeWorkspaceId] });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.myTasks(activeWorkspaceId, user?.id),
+            });
           }}
         />
       )}
     </div>
   );
 };
+
 export default MyTasksView;

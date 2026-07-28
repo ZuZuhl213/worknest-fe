@@ -20,13 +20,13 @@ export const Button: React.FC<ButtonProps> = ({
     <button
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer',
+        'inline-flex items-center justify-center font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer',
         {
           'bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-indigo-500': variant === 'primary',
-          'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 focus-visible:ring-zinc-500': variant === 'secondary',
-          'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 focus-visible:ring-indigo-500': variant === 'outline',
+          'bg-zinc-100 dark:bg-slate-800 text-zinc-900 dark:text-slate-100 hover:bg-zinc-200 dark:hover:bg-slate-700 focus-visible:ring-zinc-500': variant === 'secondary',
+          'border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-zinc-700 dark:text-slate-200 hover:bg-zinc-50 dark:hover:bg-slate-700/80 focus-visible:ring-indigo-500': variant === 'outline',
           'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500': variant === 'danger',
-          'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:ring-zinc-500': variant === 'ghost',
+          'text-zinc-600 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-800 hover:text-zinc-900 dark:hover:text-white focus-visible:ring-zinc-500': variant === 'ghost',
         },
         {
           'px-2.5 py-1.5 text-xs': size === 'sm',

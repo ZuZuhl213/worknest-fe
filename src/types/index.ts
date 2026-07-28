@@ -1,4 +1,4 @@
-export type Role = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 export type SystemRole = 'USER' | 'ADMIN';
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
@@ -50,6 +50,7 @@ export interface WorkspaceOwner {
   id: number;
   email: string;
   fullName: string;
+  avatarUrl?: string;
 }
 
 export interface Workspace {
@@ -73,7 +74,7 @@ export interface WorkspaceMember {
   id: number;
   workspaceId: number;
   user: WorkspaceMemberUser;
-  role: Role;
+  role: WorkspaceRole;
   invitedBy?: WorkspaceMemberUser;
   joinedAt?: string;
   createdAt: string;
@@ -86,6 +87,17 @@ export interface ProjectCreator {
   fullName: string;
 }
 
+export type ProjectRole = 'LEAD' | 'MEMBER' | 'VIEWER';
+
+export interface ProjectPermissions {
+  canViewProject: boolean;
+  canCreateTask: boolean;
+  canAssignTask: boolean;
+  canComment: boolean;
+  canManageProject: boolean;
+  canManageMembers: boolean;
+}
+
 export interface Project {
   id: number;
   workspaceId: number;
@@ -93,12 +105,12 @@ export interface Project {
   projectKey: string;
   description?: string;
   archived: boolean;
+  myRole?: ProjectRole;
+  permissions?: ProjectPermissions;
   createdBy: ProjectCreator;
   createdAt: string;
   updatedAt: string;
 }
-
-export type ProjectRole = 'LEAD' | 'MEMBER' | 'VIEWER';
 
 export interface ProjectMemberUser {
   id: number;
@@ -123,6 +135,12 @@ export interface TaskUser {
   fullName: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: number;
   projectId: number;
@@ -133,6 +151,8 @@ export interface Task {
   priority: TaskPriority;
   assignee?: TaskUser;
   reporter?: TaskUser;
+  subtasks?: Subtask[];
+  tags?: string[];
   dueDate?: string;
   startedAt?: string;
   completedAt?: string;

@@ -1,22 +1,32 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import AuthLayout from '../shared/layouts/auth-layout';
 import DashboardLayout from '../shared/layouts/dashboard-layout';
-import LoginForm from '../features/auth/login-form';
-import RegisterForm from '../features/auth/register-form';
-import WorkspacesPage from '../features/workspace/workspace-page';
-import WorkspaceDashboard from '../features/workspace/workspace-dashboard';
-import ProjectsList from '../features/project/projects-list';
-import ProjectDetailView from '../features/project/project-detail-view';
-import MyTasksView from '../features/task/my-tasks-view';
-import NotificationsFeed from '../features/notification/notifications-feed';
-import UserProfile from '../features/auth/user-profile';
+import ErrorBoundary from '../shared/components/error-boundary';
 import { useAuth } from '../features/auth/auth-context';
+
+const LoginForm = React.lazy(() => import('../features/auth/login-form'));
+const RegisterForm = React.lazy(() => import('../features/auth/register-form'));
+const WorkspacesPage = React.lazy(() => import('../features/workspace/workspace-page'));
+const WorkspaceDashboard = React.lazy(() => import('../features/workspace/workspace-dashboard'));
+const ProjectsList = React.lazy(() => import('../features/project/projects-list'));
+const ProjectDetailView = React.lazy(() => import('../features/project/project-detail-view'));
+const MyTasksView = React.lazy(() => import('../features/task/my-tasks-view'));
+const NotificationsFeed = React.lazy(() => import('../features/notification/notifications-feed'));
+const UserProfile = React.lazy(() => import('../features/auth/user-profile'));
 
 const AuthLoadingScreen: React.FC = () => (
   <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
     <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
   </div>
+);
+
+const lazyRoute = (element: React.ReactNode) => (
+  <ErrorBoundary>
+    <Suspense fallback={<AuthLoadingScreen />}>
+      {element}
+    </Suspense>
+  </ErrorBoundary>
 );
 
 const RootRedirect: React.FC = () => {
@@ -51,11 +61,11 @@ export const router = createBrowserRouter([
     children: [
       {
         path: 'login',
-        element: <LoginForm />,
+        element: lazyRoute(<LoginForm />),
       },
       {
         path: 'register',
-        element: <RegisterForm />,
+        element: lazyRoute(<RegisterForm />),
       },
     ],
   },
@@ -64,7 +74,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: 'workspaces',
-        element: <WorkspacesPage />,
+        element: lazyRoute(<WorkspacesPage />),
       },
       {
         path: 'workspaces/:workspaceId',
@@ -72,27 +82,27 @@ export const router = createBrowserRouter([
         children: [
           {
             path: 'dashboard',
-            element: <WorkspaceDashboard />,
+            element: lazyRoute(<WorkspaceDashboard />),
           },
           {
             path: 'projects',
-            element: <ProjectsList />,
+            element: lazyRoute(<ProjectsList />),
           },
           {
             path: 'projects/:projectId',
-            element: <ProjectDetailView />,
+            element: lazyRoute(<ProjectDetailView />),
           },
           {
             path: 'tasks',
-            element: <MyTasksView />,
+            element: lazyRoute(<MyTasksView />),
           },
           {
             path: 'notifications',
-            element: <NotificationsFeed />,
+            element: lazyRoute(<NotificationsFeed />),
           },
           {
             path: 'profile',
-            element: <UserProfile />,
+            element: lazyRoute(<UserProfile />),
           },
         ],
       },

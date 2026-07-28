@@ -1,77 +1,64 @@
-# React + TypeScript + Vite
+# WorkNest Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React, TypeScript, Vite, Tailwind CSS frontend for WorkNest.
 
-Currently, two official plugins are available:
+## Local Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Local API calls use the Vite dev proxy. Configure the backend target with:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+VITE_API_PROXY_TARGET=http://localhost:8000
 ```
+
+Leave `VITE_API_BASE_URL` empty for local same-origin `/api` requests through the dev proxy.
+
+## Production Deploy
+
+The production target is Cloudflare Pages.
+
+- Build command: `pnpm run build`
+- Output directory: `dist`
+- Node: `22`
+- Package manager: `pnpm`
+
+The default production topology is same-origin API access:
+
+1. The app calls `/api/*`.
+2. Cloudflare Pages rewrites `/api/*` to the deployed backend.
+3. Browser routes fall back to `/index.html`.
+
+Before production release, update `public/_redirects` with the real backend origin:
+
+```text
+/api/* https://api.your-domain.com/api/:splat 200
+```
+
+Keep `VITE_API_BASE_URL` empty when using this rewrite. Only set `VITE_API_BASE_URL` when intentionally calling a separate API origin directly.
+
+## Backend Requirements
+
+For same-origin Cloudflare rewrites, refresh-token cookies and CSRF requests continue to flow through `/api`.
+
+If the frontend calls a separate API origin directly instead, the backend must allow the frontend origin and use production cookie settings:
+
+- `APP_CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com`
+- `AUTH_COOKIE_SECURE=true`
+- `AUTH_COOKIE_SAME_SITE=None`
+
+When using a separate API origin, also widen `connect-src` in `public/_headers` and set `VITE_API_BASE_URL` in Cloudflare Pages.
+
+## Verification
+
+```bash
+pnpm lint
+pnpm build
+pnpm audit --prod --audit-level high
+pnpm preview
+```
+
+After preview starts, verify `/login`, `/register`, `/workspaces`, and a deep route such as `/workspaces/1/dashboard`.

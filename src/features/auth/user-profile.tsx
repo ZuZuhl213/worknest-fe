@@ -98,6 +98,7 @@ export const UserProfile: React.FC = () => {
             <input 
               type="file" 
               ref={fileInputRef} 
+              aria-label="Upload profile avatar"
               className="hidden" 
               accept="image/*" 
               onChange={handleFileChange} 

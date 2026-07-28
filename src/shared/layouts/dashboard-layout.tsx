@@ -3,12 +3,16 @@ import { Navigate, Outlet, useParams, Link, useNavigate, useLocation } from 'rea
 import { useAuth } from '../../features/auth/auth-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient, { getApiErrorMessage } from '../api/client';
+import { queryKeys } from '../api/query-keys';
 import { Workspace, Project, Notification } from '../../types';
+import ErrorBoundary from '../components/error-boundary';
 import Avatar from '../components/avatar';
 import Button from '../components/button';
 import Input from '../components/input';
 import Modal from '../components/modal';
 import { useToast } from '../components/toast';
+import CommandPalette from '../components/command-palette';
+import ThemeToggle from '../theme/theme-toggle';
 import { 
   LayoutDashboard, 
   FolderKanban, 
@@ -24,7 +28,9 @@ import {
   Check,
   CheckCheck,
   Clock,
-  Inbox
+  Inbox,
+  Search,
+  Command,
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
@@ -35,6 +41,7 @@ export const DashboardLayout: React.FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -43,6 +50,18 @@ export const DashboardLayout: React.FC = () => {
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const notifDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Global Ctrl+K / Cmd+K listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Close notification dropdown on outside click
   useEffect(() => {
@@ -67,7 +86,7 @@ export const DashboardLayout: React.FC = () => {
 
   // 1. Fetch workspaces
   const { data: workspaces = [], isLoading: isWorkspacesLoading } = useQuery<Workspace[]>({
-    queryKey: ['workspaces'],
+    queryKey: queryKeys.workspaces(),
     queryFn: () => apiClient.get('/api/workspaces').then(res => res.data),
     enabled: isAuthenticated,
   });
@@ -75,14 +94,14 @@ export const DashboardLayout: React.FC = () => {
   // 2. Fetch projects for active workspace
   const activeWorkspaceId = workspaceId ? parseInt(workspaceId) : undefined;
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery<Project[]>({
-    queryKey: ['projects', activeWorkspaceId],
+    queryKey: queryKeys.projects(activeWorkspaceId),
     queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects`).then(res => res.data),
     enabled: !!activeWorkspaceId && isAuthenticated,
   });
 
   // 3. Fetch notifications count
   const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: ['notifications'],
+    queryKey: queryKeys.notifications(),
     queryFn: () => apiClient.get('/api/notifications').then(res => res.data),
     enabled: isAuthenticated,
     refetchInterval: 15000,
@@ -92,7 +111,7 @@ export const DashboardLayout: React.FC = () => {
   const readNotifMutation = useMutation({
     mutationFn: (id: number) =>
       apiClient.patch<Notification>(`/api/notifications/${id}/read`).then(r => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
   });
 
   // Mark all as read
@@ -102,7 +121,7 @@ export const DashboardLayout: React.FC = () => {
       await Promise.all(unread.map(n => apiClient.patch(`/api/notifications/${n.id}/read`)));
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications() });
       toast('All notifications marked as read', 'success');
     },
   });
@@ -112,7 +131,7 @@ export const DashboardLayout: React.FC = () => {
     mutationFn: (data: { name: string; slug: string; description: string }) => 
       apiClient.post<Workspace>('/api/workspaces', data).then(res => res.data),
     onSuccess: (newWorkspace) => {
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces() });
       toast('Workspace created successfully!', 'success');
       setWorkspaceModalOpen(false);
       setNewWorkspaceName('');
@@ -165,27 +184,27 @@ export const DashboardLayout: React.FC = () => {
 
   return (
     <>
-    <div className="flex h-screen w-screen bg-zinc-50/50 overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-zinc-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-200">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex md:flex-col md:w-60 shrink-0 border-r border-zinc-200 bg-white">
+      <aside className="hidden md:flex md:flex-col md:w-60 shrink-0 border-r border-zinc-200 dark:border-slate-800/80 bg-white dark:bg-slate-900">
         {/* Workspace Switcher Header */}
-        <div className="relative border-b border-zinc-100 px-4 py-3 flex items-center justify-between">
+        <div className="relative border-b border-zinc-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
           <button 
             onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-            className="flex items-center gap-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 rounded-md p-1.5 w-full text-left justify-between cursor-pointer"
+            className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-slate-100 hover:bg-zinc-50 dark:hover:bg-slate-800 rounded-md p-1.5 w-full text-left justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2 truncate">
-              <div className="w-6 h-6 rounded bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
-                <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+              <div className="w-6 h-6 rounded bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-center shrink-0">
+                <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <span className="truncate">{activeWorkspace ? activeWorkspace.name : 'Select Workspace'}</span>
             </div>
-            <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />
+            <ChevronDown className="h-4 w-4 text-zinc-400 dark:text-slate-500 shrink-0" />
           </button>
 
           {/* Switcher Dropdown */}
           {showWorkspaceDropdown && (
-            <div className="absolute top-13 left-4 right-4 z-50 bg-white border border-zinc-200 rounded-md shadow-lg p-1 flex flex-col gap-1">
+            <div className="absolute top-13 left-4 right-4 z-50 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-lg p-1 flex flex-col gap-1">
               <span className="text-[10px] font-semibold text-zinc-400 px-2 py-1 select-none">SWITCH WORKSPACE</span>
               <div className="max-h-40 overflow-y-auto flex flex-col">
                 {workspaces.map(w => (
@@ -226,8 +245,8 @@ export const DashboardLayout: React.FC = () => {
               <Link
                 key={link.label}
                 to={link.path}
-                className={`flex items-center justify-between text-xs px-3 py-2 rounded-md hover:bg-zinc-50 font-medium transition-colors ${
-                  isActive ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-600 hover:text-zinc-900'
+                className={`flex items-center justify-between text-xs px-3 py-2 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800/80 font-medium transition-colors ${
+                  isActive ? 'bg-zinc-100 dark:bg-slate-800 text-zinc-900 dark:text-white font-semibold' : 'text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
@@ -274,12 +293,12 @@ export const DashboardLayout: React.FC = () => {
         </nav>
 
         {/* User Footer Profile */}
-        <div className="border-t border-zinc-100 p-4 flex items-center justify-between gap-2">
+        <div className="border-t border-zinc-100 dark:border-slate-800 p-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 truncate">
             <Avatar name={user?.fullName || ''} size="sm" />
             <div className="flex flex-col text-left truncate">
-              <span className="text-xs font-semibold text-zinc-900 truncate">{user?.fullName}</span>
-              <span className="text-[10px] text-zinc-500 truncate">{user?.email}</span>
+              <span className="text-xs font-semibold text-zinc-900 dark:text-slate-100 truncate">{user?.fullName}</span>
+              <span className="text-[10px] text-zinc-500 dark:text-slate-400 truncate">{user?.email}</span>
             </div>
           </div>
           <button 
@@ -295,22 +314,34 @@ export const DashboardLayout: React.FC = () => {
       {/* Main Panel Content */}
       <div className="flex flex-col flex-1 h-full overflow-hidden">
         {/* Top bar header */}
-        <header className="h-14 border-b border-zinc-200 bg-white flex items-center justify-between px-6 shrink-0 z-10">
+        <header className="h-14 border-b border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0 z-10">
           <div className="flex items-center gap-3">
             {/* Mobile Menu Toggle Button */}
             <button 
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden text-zinc-500 hover:text-zinc-800 p-1 cursor-pointer"
+              className="md:hidden text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-100 p-1 cursor-pointer"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <span className="text-xs font-medium text-zinc-400 select-none">
+            <span className="text-xs font-semibold text-zinc-400 dark:text-slate-500 select-none">
               WorkNest
             </span>
+            <button
+              onClick={() => setCommandPaletteOpen(true)}
+              aria-label="Open Command Palette (Ctrl+K)"
+              className="flex items-center gap-2 bg-zinc-50 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 hover:border-zinc-300 dark:hover:border-slate-600 rounded-xl px-3 py-1.5 text-xs text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-slate-500" aria-hidden="true" />
+              <span>Search commands...</span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-zinc-400 dark:text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-slate-700">
+                <Command className="h-3 w-3" aria-hidden="true" /> K
+              </kbd>
+            </button>
           </div>
 
-          <div className="flex items-center gap-4">
-          <div className="relative flex items-center" ref={notifDropdownRef}>
+          <div className="flex items-center gap-3">
+            <ThemeToggle variant="compact" />
+            <div className="relative flex items-center" ref={notifDropdownRef}>
               <button
                 onClick={() => setShowNotifDropdown(v => !v)}
                 className="relative p-1.5 rounded-full hover:bg-zinc-50 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors"
@@ -423,8 +454,10 @@ export const DashboardLayout: React.FC = () => {
         </header>
 
         {/* Sub-view Outlet Scrollable */}
-        <main className="flex-1 overflow-y-auto bg-zinc-50/50 p-6 text-left">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto bg-zinc-50/50 dark:bg-slate-950 p-6 text-left">
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -506,6 +539,7 @@ export const DashboardLayout: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-zinc-500">Description</label>
             <textarea
+              aria-label="Description"
               className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
               placeholder="Describe this workspace workspace..."
               value={newWorkspaceDesc}
@@ -531,6 +565,9 @@ export const DashboardLayout: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Command Palette Modal */}
+      <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
       <style>{`
         @keyframes notifDropIn {

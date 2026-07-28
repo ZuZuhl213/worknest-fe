@@ -1,6 +1,7 @@
 # Cloudflare Pages Redirects
-# Forward all /api/* requests to your production backend API.
-# Uncomment and replace the URL below with your actual deployed backend API URL
-# before enabling production deploys.
+# Prefer this same-origin API proxy when frontend and backend are on different hosts.
+# Replace the placeholder with the deployed backend origin before production release.
+# /api/* https://api.worknest.example.com/api/:splat 200
 
-# /api/* https://api.worknest.com/api/:splat 200
+# SPA fallback for direct refreshes on React Router routes.
+/* /index.html 200

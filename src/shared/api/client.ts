@@ -42,8 +42,10 @@ export const getApiFieldErrors = (error: unknown) => {
   return {};
 };
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
+
 const clientOptions = {
-  baseURL: '',
+  baseURL: apiBaseUrl,
   withCredentials: true,
 };
 

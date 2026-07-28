@@ -2,15 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient, { getApiErrorMessage } from '../../shared/api/client';
-import { Task, WorkspaceMember, TaskComment, TaskStatus, TaskPriority, Attachment } from '../../types';
+import { queryKeys } from '../../shared/api/query-keys';
+import { Project, Task, WorkspaceMember, TaskComment, TaskStatus, TaskPriority, Attachment, PagedResponse } from '../../types';
 import Button from '../../shared/components/button';
 import Avatar from '../../shared/components/avatar';
 import { useToast } from '../../shared/components/toast';
 import { useAuth } from '../auth/auth-context';
 import {
+  canAssignTask,
+  canCommentOnProject,
+  canDeleteTask,
+  canEditTask,
+} from '../../shared/lib/permissions';
+import {
   X, Edit2, Check, Paperclip, Download, Send,
   MessageSquare, Calendar, ZoomIn, FileText,
-  Trash2, Clock, Flag, User,
+  Trash2, Clock, Flag, User, Plus, Tag, CheckSquare,
 } from 'lucide-react';
 
 interface TaskDetailModalProps {
@@ -18,6 +25,7 @@ interface TaskDetailModalProps {
   workspaceId: number;
   projectId: number;
   projectKey: string;
+  project?: Project;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -37,7 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  taskId, workspaceId, projectId, projectKey, isOpen, onClose,
+  taskId, workspaceId, projectId, projectKey, project, isOpen, onClose,
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -54,38 +62,72 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [lightboxName, setLightboxName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
+  const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean }[]>([]);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTagText, setNewTagText] = useState('');
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    if (isOpen) window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  const handleAddSubtask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubtaskText.trim()) return;
+    const item = { id: Date.now().toString(), title: newSubtaskText.trim(), completed: false };
+    setSubtasks((prev) => [...prev, item]);
+    setNewSubtaskText('');
+  };
+
+  const handleToggleSubtask = (id: string) => {
+    setSubtasks((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, completed: !s.completed } : s))
+    );
+  };
+
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleAddTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    const tag = newTagText.trim();
+    if (!tag || tags.includes(tag)) return;
+    setTags((prev) => [...prev, tag]);
+    setNewTagText('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags((prev) => prev.filter((t) => t !== tagToRemove));
+  };
 
   const { data: task, isLoading } = useQuery<Task>({
-    queryKey: ['task', workspaceId, projectId, taskId],
+    queryKey: queryKeys.task(workspaceId, projectId, taskId),
     queryFn: () => apiClient.get(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}`).then(r => r.data),
     enabled: isOpen && !!taskId,
   });
 
+  useEffect(() => {
+    if (task) {
+      setSubtasks(task.subtasks || []);
+      setTags(task.tags || []);
+    }
+  }, [task]);
+
   const { data: members = [] } = useQuery<WorkspaceMember[]>({
-    queryKey: ['workspace-members', workspaceId],
-    queryFn: () => apiClient.get(`/api/workspaces/${workspaceId}/members`).then(r => r.data),
+    queryKey: queryKeys.workspaceMembers(workspaceId),
+    queryFn: () => apiClient
+      .get<PagedResponse<WorkspaceMember>>(`/api/workspaces/${workspaceId}/members`, { params: { size: 100 } })
+      .then(r => r.data.content),
     enabled: isOpen,
   });
 
   const { data: comments = [] } = useQuery<TaskComment[]>({
-    queryKey: ['comments', workspaceId, projectId, taskId],
-    queryFn: () => apiClient.get(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}/comments`).then(r => r.data),
+    queryKey: queryKeys.comments(workspaceId, projectId, taskId),
+    queryFn: () => apiClient
+      .get<PagedResponse<TaskComment>>(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}/comments`, { params: { size: 100 } })
+      .then(r => r.data.content),
     enabled: isOpen && !!taskId,
   });
 
   const { data: attachments = [] } = useQuery<Attachment[]>({
-    queryKey: ['attachments', taskId],
+    queryKey: queryKeys.attachments(taskId),
     queryFn: () => apiClient.get(`/api/tasks/${taskId}/attachments`).then(r => r.data),
     enabled: isOpen && !!taskId,
   });
@@ -103,8 +145,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       return apiClient.put<Task>(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}`, payload).then(r => r.data);
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['task', workspaceId, projectId, taskId], updated);
-      queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId, projectId] });
+      queryClient.setQueryData(queryKeys.task(workspaceId, projectId, taskId), updated);
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(workspaceId, projectId) });
       toast('Task updated', 'success');
     },
     onError: (error: unknown) => toast(getApiErrorMessage(error, 'Failed to update'), 'error'),
@@ -113,7 +155,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const deleteTask = useMutation({
     mutationFn: () => apiClient.delete(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId, projectId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(workspaceId, projectId) });
       toast('Task deleted', 'success');
       onClose();
     },
@@ -124,7 +166,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     mutationFn: (content: string) =>
       apiClient.post<TaskComment>(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}/comments`, { content }).then(r => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', workspaceId, projectId, taskId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.comments(workspaceId, projectId, taskId) });
       setCommentText('');
     },
     onError: (error: unknown) => toast(getApiErrorMessage(error, 'Failed to post comment'), 'error'),
@@ -134,7 +176,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     mutationFn: ({ commentId, content }: { commentId: number; content: string }) =>
       apiClient.put(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, { content }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', workspaceId, projectId, taskId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.comments(workspaceId, projectId, taskId) });
       setEditingCommentId(null);
     },
     onError: (error: unknown) => toast(getApiErrorMessage(error, 'Failed to update comment'), 'error'),
@@ -143,7 +185,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const deleteComment = useMutation({
     mutationFn: (commentId: number) =>
       apiClient.delete(`/api/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}/comments/${commentId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments', workspaceId, projectId, taskId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.comments(workspaceId, projectId, taskId) }),
     onError: (error: unknown) => toast(getApiErrorMessage(error, 'Failed to delete comment'), 'error'),
   });
 
@@ -156,7 +198,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       }).then(r => r.data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attachments', taskId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.attachments(taskId) });
       toast('File uploaded', 'success');
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
@@ -168,17 +210,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !canEditCurrentTask) return;
     if (file.size > 10 * 1024 * 1024) { toast('Max file size is 10 MB', 'error'); return; }
     uploadAttachment.mutate(file);
   };
 
   const saveTitle = () => {
+    if (!canEditCurrentTask) return;
     if (editedTitle.trim() && editedTitle !== task?.title) updateTask.mutate({ title: editedTitle });
     setIsEditingTitle(false);
   };
 
   const saveDesc = () => {
+    if (!canEditCurrentTask) return;
     if (editedDesc !== task?.description) updateTask.mutate({ description: editedDesc });
     setIsEditingDesc(false);
   };
@@ -187,6 +231,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const statusCfg = STATUS_CONFIG[task?.status ?? 'TODO'];
   const priorityCfg = PRIORITY_CONFIG[task?.priority ?? 'MEDIUM'];
+  const canEditCurrentTask = canEditTask(project, task, user?.id);
+  const canAssignCurrentTask = canAssignTask(project);
+  const canDeleteCurrentTask = canDeleteTask(project, task, user?.id);
+  const canComment = canCommentOnProject(project);
 
   return ReactDOM.createPortal(
     <>
@@ -241,21 +289,30 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     <div className="flex items-start gap-2">
                       <input
                         autoFocus
+                        aria-label="Edit task title"
                         value={editedTitle}
                         onChange={e => setEditedTitle(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setIsEditingTitle(false); }}
                         className="flex-1 text-lg font-bold text-zinc-900 border border-indigo-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                       />
-                      <button onClick={saveTitle} className="p-1.5 text-green-600 hover:text-green-700 cursor-pointer"><Check className="h-4 w-4" /></button>
-                      <button onClick={() => setIsEditingTitle(false)} className="p-1.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"><X className="h-4 w-4" /></button>
+                      <button onClick={saveTitle} aria-label="Save title" className="p-1.5 text-green-600 hover:text-green-700 cursor-pointer"><Check className="h-4 w-4" aria-hidden="true" /></button>
+                      <button onClick={() => setIsEditingTitle(false)} aria-label="Cancel title edit" className="p-1.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"><X className="h-4 w-4" aria-hidden="true" /></button>
                     </div>
                   ) : (
                     <div
-                      className="flex items-start gap-2 cursor-pointer rounded-lg p-1 -ml-1 hover:bg-zinc-50 transition-colors"
-                      onClick={() => { setEditedTitle(task.title); setIsEditingTitle(true); }}
+                      className={`flex items-start gap-2 rounded-lg p-1 -ml-1 transition-colors ${
+                        canEditCurrentTask ? 'cursor-pointer hover:bg-zinc-50' : ''
+                      }`}
+                      onClick={() => {
+                        if (!canEditCurrentTask) return;
+                        setEditedTitle(task.title);
+                        setIsEditingTitle(true);
+                      }}
                     >
                       <h1 className="flex-1 text-xl font-bold text-zinc-900 leading-snug">{task.title}</h1>
-                      <Edit2 className="h-3.5 w-3.5 text-zinc-300 opacity-0 group-hover:opacity-100 mt-1.5 shrink-0 transition-opacity" />
+                      {canEditCurrentTask && (
+                        <Edit2 className="h-3.5 w-3.5 text-zinc-300 opacity-0 group-hover:opacity-100 mt-1.5 shrink-0 transition-opacity" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -267,6 +324,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     <div className="flex flex-col gap-2">
                       <textarea
                         autoFocus
+                        aria-label="Edit description"
                         value={editedDesc}
                         onChange={e => setEditedDesc(e.target.value)}
                         rows={6}
@@ -280,8 +338,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                   ) : (
                     <div
-                      onClick={() => { setEditedDesc(task.description || ''); setIsEditingDesc(true); }}
-                      className="text-sm text-zinc-700 rounded-lg border border-zinc-200 p-3.5 cursor-pointer hover:border-zinc-300 hover:bg-zinc-50/50 transition-all min-h-[80px] whitespace-pre-line"
+                      onClick={() => {
+                        if (!canEditCurrentTask) return;
+                        setEditedDesc(task.description || '');
+                        setIsEditingDesc(true);
+                      }}
+                      className={`text-sm text-zinc-700 rounded-lg border border-zinc-200 p-3.5 transition-all min-h-[80px] whitespace-pre-line ${
+                        canEditCurrentTask ? 'cursor-pointer hover:border-zinc-300 hover:bg-zinc-50/50' : ''
+                      }`}
                     >
                       {task.description
                         ? task.description
@@ -291,22 +355,139 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   )}
                 </div>
 
+                {/* Custom Tags Section */}
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" aria-hidden="true" /> Tags ({tags.length})
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {tags.map((t) => {
+                      const lower = t.toLowerCase();
+                      const badgeColor =
+                        lower === 'bug' ? 'bg-red-50 text-red-700 border-red-200' :
+                        lower === 'feature' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                        lower === 'frontend' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        lower === 'backend' ? 'bg-green-50 text-green-700 border-green-200' :
+                        'bg-zinc-100 text-zinc-700 border-zinc-200';
+                      return (
+                        <span key={t} className={`text-xs font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1 ${badgeColor}`}>
+                          {t}
+                          {canEditCurrentTask && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTag(t)}
+                              aria-label={`Remove tag ${t}`}
+                              className="hover:text-red-600 cursor-pointer ml-0.5"
+                            >
+                              <X className="h-3 w-3" aria-hidden="true" />
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })}
+
+                    {canEditCurrentTask && (
+                      <form onSubmit={handleAddTag} className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          aria-label="Add new tag"
+                          placeholder="+ Add Tag"
+                          value={newTagText}
+                          onChange={(e) => setNewTagText(e.target.value)}
+                          className="text-xs border border-dashed border-zinc-300 rounded-md px-2 py-0.5 bg-white text-zinc-700 focus:outline-none focus:border-indigo-500 w-20"
+                        />
+                      </form>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subtasks Checklist Section */}
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <CheckSquare className="h-3.5 w-3.5" aria-hidden="true" /> Subtasks Checklist ({subtasks.filter(s => s.completed).length}/{subtasks.length})
+                    </h3>
+                    {subtasks.length > 0 && (
+                      <span className="text-[11px] font-medium text-zinc-500">
+                        {Math.round((subtasks.filter(s => s.completed).length / subtasks.length) * 100)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {subtasks.length > 0 && (
+                    <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${(subtasks.filter(s => s.completed).length / subtasks.length) * 100}%` }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1.5">
+                    {subtasks.map((st) => (
+                      <div key={st.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-zinc-100 bg-zinc-50/50 hover:bg-zinc-50">
+                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={st.completed}
+                            onChange={() => handleToggleSubtask(st.id)}
+                            disabled={!canEditCurrentTask}
+                            aria-label={st.title}
+                            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                          />
+                          <span className={`text-xs text-zinc-800 truncate ${st.completed ? 'line-through text-zinc-400' : ''}`}>
+                            {st.title}
+                          </span>
+                        </label>
+                        {canEditCurrentTask && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubtask(st.id)}
+                            aria-label={`Delete subtask ${st.title}`}
+                            className="text-zinc-400 hover:text-red-600 p-1 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    {canEditCurrentTask && (
+                      <form onSubmit={handleAddSubtask} className="flex items-center gap-2 mt-1">
+                        <input
+                          type="text"
+                          aria-label="Add subtask"
+                          placeholder="Add a new subtask..."
+                          value={newSubtaskText}
+                          onChange={(e) => setNewSubtaskText(e.target.value)}
+                          className="flex-1 text-xs border border-zinc-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        />
+                        <Button type="submit" size="sm" variant="outline" className="text-xs cursor-pointer">
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+
                 {/* Attachments */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                       <Paperclip className="h-3.5 w-3.5" /> Attachments ({attachments.length})
                     </h3>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadAttachment.isPending}
-                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                    >
-                      {uploadAttachment.isPending
-                        ? <span className="animate-spin rounded-full h-3 w-3 border border-indigo-500 border-t-transparent inline-block" />
-                        : '+ Add File'}
-                    </button>
-                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+                    {canEditCurrentTask && (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadAttachment.isPending}
+                        className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        {uploadAttachment.isPending
+                          ? <span className="animate-spin rounded-full h-3 w-3 border border-indigo-500 border-t-transparent inline-block" />
+                          : '+ Add File'}
+                      </button>
+                    )}
+                    <input type="file" ref={fileInputRef} aria-label="Upload attachment file" className="hidden" onChange={handleFileChange} />
                   </div>
 
                   {attachments.length > 0 && (
@@ -363,22 +544,25 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     <MessageSquare className="h-3.5 w-3.5" /> Activity ({comments.length})
                   </h3>
 
-                  <div className="flex items-start gap-2.5">
-                    <Avatar name={user?.fullName || 'U'} size="sm" />
-                    <form className="flex-1 flex gap-2"
-                      onSubmit={e => { e.preventDefault(); if (commentText.trim()) createComment.mutate(commentText); }}>
-                      <input
-                        type="text"
-                        placeholder="Write a comment..."
-                        value={commentText}
-                        onChange={e => setCommentText(e.target.value)}
-                        className="flex-1 text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 bg-zinc-50/50"
-                      />
-                      <Button type="submit" size="sm" className="cursor-pointer shrink-0" isLoading={createComment.isPending}>
-                        <Send className="h-3.5 w-3.5" />
-                      </Button>
-                    </form>
-                  </div>
+                  {canComment && (
+                    <div className="flex items-start gap-2.5">
+                      <Avatar name={user?.fullName || 'U'} size="sm" />
+                      <form className="flex-1 flex gap-2"
+                        onSubmit={e => { e.preventDefault(); if (commentText.trim()) createComment.mutate(commentText); }}>
+                        <input
+                          type="text"
+                          aria-label="Write a comment"
+                          placeholder="Write a comment..."
+                          value={commentText}
+                          onChange={e => setCommentText(e.target.value)}
+                          className="flex-1 text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 bg-zinc-50/50"
+                        />
+                        <Button type="submit" size="sm" className="cursor-pointer shrink-0" isLoading={createComment.isPending}>
+                          <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                      </form>
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-3">
                     {comments.map(comm => {
@@ -396,14 +580,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                             </div>
                             {isEditing ? (
                               <div className="flex items-center gap-2">
-                                <input autoFocus type="text" value={editingCommentText}
+                                <input autoFocus type="text" aria-label="Edit comment content" value={editingCommentText}
                                   onChange={e => setEditingCommentText(e.target.value)}
                                   className="flex-1 text-sm border border-zinc-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                                 />
                                 <button onClick={() => updateComment.mutate({ commentId: comm.id, content: editingCommentText })}
-                                  className="p-1 text-green-600 hover:text-green-700 cursor-pointer"><Check className="h-4 w-4" /></button>
+                                  aria-label="Save comment"
+                                  className="p-1 text-green-600 hover:text-green-700 cursor-pointer"><Check className="h-4 w-4" aria-hidden="true" /></button>
                                 <button onClick={() => setEditingCommentId(null)}
-                                  className="p-1 text-zinc-400 hover:text-zinc-600 cursor-pointer"><X className="h-4 w-4" /></button>
+                                  aria-label="Cancel comment edit"
+                                  className="p-1 text-zinc-400 hover:text-zinc-600 cursor-pointer"><X className="h-4 w-4" aria-hidden="true" /></button>
                               </div>
                             ) : (
                               <p className="text-sm text-zinc-700 bg-zinc-50 border border-zinc-100 rounded-lg px-3 py-2">{comm.content}</p>
@@ -435,7 +621,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <select
                     value={task.status}
                     onChange={e => updateTask.mutate({ status: e.target.value as TaskStatus })}
-                    className={`w-full text-xs font-semibold border-0 rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer ${statusCfg.bg} ${statusCfg.text}`}
+                    disabled={!canEditCurrentTask}
+                    className={`w-full text-xs font-semibold border-0 rounded-lg px-2.5 py-1.5 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 ${
+                      canEditCurrentTask ? 'cursor-pointer' : ''
+                    } ${statusCfg.bg} ${statusCfg.text}`}
                   >
                     <option value="TODO">To Do</option>
                     <option value="IN_PROGRESS">In Progress</option>
@@ -451,7 +640,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <select
                     value={task.priority}
                     onChange={e => updateTask.mutate({ priority: e.target.value as TaskPriority })}
-                    className="w-full text-xs font-medium border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none cursor-pointer text-zinc-700"
+                    disabled={!canEditCurrentTask}
+                    className="w-full text-xs font-medium border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none cursor-pointer text-zinc-700 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -474,7 +664,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       const val = e.target.value;
                       updateTask.mutate({ assigneeUserId: val ? parseInt(val) : null });
                     }}
-                    className="w-full text-xs font-medium border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none cursor-pointer text-zinc-700"
+                    disabled={!canAssignCurrentTask}
+                    className="w-full text-xs font-medium border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none cursor-pointer text-zinc-700 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <option value="">Unassigned</option>
                     {members.map(m => (
@@ -495,12 +686,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </label>
                   <input
                     type="date"
+                    aria-label="Due Date"
                     value={task.dueDate ? task.dueDate.split('T')[0] : ''}
                     onChange={e => {
                       const val = e.target.value;
                       updateTask.mutate({ dueDate: val ? new Date(val).toISOString() : undefined });
                     }}
-                    className="w-full text-xs font-medium border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none cursor-pointer text-zinc-700"
+                    disabled={!canEditCurrentTask}
+                    className="w-full text-xs font-medium border border-zinc-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none cursor-pointer text-zinc-700 disabled:cursor-not-allowed disabled:opacity-70"
                   />
                   {task.dueDate && (
                     <span className={`text-[10px] font-medium flex items-center gap-1 ${
@@ -531,16 +724,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   )}
                 </div>
 
-                <div className="mt-auto pt-2">
-                  <Button
-                    variant="danger" size="sm"
-                    className="w-full flex items-center justify-center gap-1.5 text-xs cursor-pointer"
-                    isLoading={deleteTask.isPending}
-                    onClick={() => { if (confirm('Delete this task permanently?')) deleteTask.mutate(); }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete Task
-                  </Button>
-                </div>
+                {canDeleteCurrentTask && (
+                  <div className="mt-auto pt-2">
+                    <Button
+                      variant="danger" size="sm"
+                      className="w-full flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+                      isLoading={deleteTask.isPending}
+                      onClick={() => { if (confirm('Delete this task permanently?')) deleteTask.mutate(); }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete Task
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
