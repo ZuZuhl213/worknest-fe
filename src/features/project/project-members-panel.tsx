@@ -46,21 +46,21 @@ export const ProjectMembersPanel: React.FC<ProjectMembersPanelProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Project Members Management">
       <div className="flex flex-col gap-6 text-left">
         {canManageMembers && (
-          <div className="flex flex-col gap-3 pb-4 border-b border-zinc-100">
-            <h3 className="text-xs font-semibold text-zinc-900 flex items-center gap-1">
+          <div className="flex flex-col gap-3 pb-4 border-b border-zinc-100 dark:border-slate-800">
+            <h3 className="text-xs font-semibold text-zinc-900 dark:text-slate-100 flex items-center gap-1">
               <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
               Add Workspace Member to Project
             </h3>
             <form onSubmit={handleAddSubmit} className="flex flex-col sm:flex-row gap-3 items-end">
               <div className="flex-1 flex flex-col gap-1.5 w-full">
-                <label htmlFor="select-colleague" className="text-[10px] font-medium text-zinc-500">
+                <label htmlFor="select-colleague" className="text-[10px] font-medium text-zinc-500 dark:text-slate-400">
                   Select Member
                 </label>
                 <select
                   id="select-colleague"
                   value={addMemberEmail}
                   onChange={(e) => setAddMemberEmail(e.target.value)}
-                  className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+                  className="flex w-full rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-zinc-900 dark:text-slate-100 dark:[color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
                 >
                   <option value="">-- Choose a colleague --</option>
                   {workspaceMembers
@@ -73,14 +73,14 @@ export const ProjectMembersPanel: React.FC<ProjectMembersPanelProps> = ({
                 </select>
               </div>
               <div className="w-full sm:w-[120px] flex flex-col gap-1.5">
-                <label htmlFor="select-project-role" className="text-[10px] font-medium text-zinc-500">
+                <label htmlFor="select-project-role" className="text-[10px] font-medium text-zinc-500 dark:text-slate-400">
                   Project Role
                 </label>
                 <select
                   id="select-project-role"
                   value={addMemberRole}
                   onChange={(e) => setAddMemberRole(e.target.value as ProjectRole)}
-                  className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+                  className="flex w-full rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-zinc-900 dark:text-slate-100 dark:[color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
                 >
                   <option value="MEMBER">MEMBER</option>
                   <option value="LEAD">LEAD</option>
@@ -101,7 +101,7 @@ export const ProjectMembersPanel: React.FC<ProjectMembersPanelProps> = ({
         )}
 
         <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-semibold text-zinc-900 flex items-center gap-1.5">
+          <h3 className="text-xs font-semibold text-zinc-900 dark:text-slate-100 flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" aria-hidden="true" />
             Active Project Members ({projectMembers.length})
           </h3>
@@ -109,15 +109,15 @@ export const ProjectMembersPanel: React.FC<ProjectMembersPanelProps> = ({
             {projectMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center justify-between gap-3 p-2 rounded-lg border border-zinc-100 bg-zinc-50/50"
+                className="flex items-center justify-between gap-3 p-2 rounded-lg border border-zinc-100 dark:border-slate-800 bg-zinc-50/50 dark:bg-slate-800/50"
               >
                 <div className="flex items-center gap-2.5 truncate">
                   <Avatar name={member.user.fullName} size="sm" />
                   <div className="flex flex-col truncate">
-                    <span className="text-xs font-semibold text-zinc-900 truncate">
+                    <span className="text-xs font-semibold text-zinc-900 dark:text-slate-100 truncate">
                       {member.user.fullName}
                     </span>
-                    <span className="text-[10px] text-zinc-500 truncate">{member.user.email}</span>
+                    <span className="text-[10px] text-zinc-500 dark:text-slate-400 truncate">{member.user.email}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5 shrink-0">
@@ -128,7 +128,7 @@ export const ProjectMembersPanel: React.FC<ProjectMembersPanelProps> = ({
                       onChange={(e) =>
                         onUpdateRole({ memberId: member.id, role: e.target.value as ProjectRole })
                       }
-                      className="text-[10px] rounded border border-zinc-200 bg-white p-0.5 text-zinc-700 focus:outline-none cursor-pointer"
+                      className="text-[10px] rounded border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-zinc-700 dark:text-slate-200 dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="LEAD">LEAD</option>
                       <option value="MEMBER">MEMBER</option>
@@ -160,7 +160,7 @@ export const ProjectMembersPanel: React.FC<ProjectMembersPanelProps> = ({
               </div>
             ))}
             {projectMembers.length === 0 && (
-              <div className="text-center py-6 text-zinc-400 text-xs italic">
+              <div className="text-center py-6 text-zinc-400 dark:text-slate-400 text-xs italic">
                 No direct members. Workspace admins/owners have full access.
               </div>
             )}

@@ -2,6 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { AuthResponse } from '../../types';
 
 type ApiErrorBody = {
+  code?: string;
   error?: string;
   fields?: Record<string, string>;
   message?: string;
@@ -40,6 +41,13 @@ export const getApiFieldErrors = (error: unknown) => {
     return error.response?.data?.fields ?? {};
   }
   return {};
+};
+
+export const getApiErrorCode = (error: unknown) => {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return error.response?.data?.code;
+  }
+  return undefined;
 };
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
@@ -104,7 +112,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as RetryableRequest | undefined;
     if (!originalRequest) return Promise.reject(error);
 
-    const isAuthUrl = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh']
+    const isAuthUrl = ['/api/auth/login', '/api/auth/google', '/api/auth/register', '/api/auth/refresh']
       .some((path) => originalRequest.url?.includes(path));
     if (error.response?.status !== 401 || originalRequest._retry || isAuthUrl) {
       return Promise.reject(error);

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useId } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useId } from 'react';
 import ReactDOM from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -16,6 +16,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const closeModal = useEffectEvent(onClose);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        closeModal();
         return;
       }
 
@@ -78,7 +79,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         previousActiveElementRef.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -113,7 +114,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             className="p-1 h-auto cursor-pointer" 
             onClick={onClose}
           >
-            <X className="h-4 w-4 text-zinc-400 hover:text-zinc-600" aria-hidden="true" />
+            <X className="h-4 w-4 text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200" aria-hidden="true" />
           </Button>
         </div>
 

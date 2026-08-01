@@ -61,7 +61,7 @@ export const ProjectsList: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50 dark:bg-slate-950">
         <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
       </div>
     );
@@ -72,8 +72,8 @@ export const ProjectsList: React.FC = () => {
       {/* Title Header */}
       <div className="flex items-center justify-between text-left">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Projects Directory</h1>
-          <p className="text-xs text-zinc-500 mt-1">Manage and launch projects configured within this workspace.</p>
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-slate-100">Projects Directory</h1>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 mt-1">Manage and launch projects configured within this workspace.</p>
         </div>
         <Button
           onClick={() => setModalOpen(true)}
@@ -95,38 +95,38 @@ export const ProjectsList: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {projects.map((proj) => (
-            <Card key={proj.id} className="hover:border-zinc-300 transition-all flex flex-col justify-between">
+            <Card key={proj.id} className="hover:border-zinc-300 dark:hover:border-slate-600 transition-all flex flex-col justify-between">
               <CardHeader className="flex flex-row items-start justify-between gap-4 p-5">
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded bg-indigo-50 border border-indigo-100 flex items-center justify-center font-mono font-bold text-xs text-indigo-600 shrink-0 select-none">
+                  <div className="w-9 h-9 rounded bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center font-mono font-bold text-xs text-indigo-600 dark:text-indigo-300 shrink-0 select-none">
                     {proj.projectKey}
                   </div>
                   <div className="flex flex-col text-left">
-                    <CardTitle className="text-sm font-semibold text-zinc-900">{proj.name}</CardTitle>
-                    <span className="text-[10px] text-zinc-400 font-medium">Key: {proj.projectKey}</span>
+                    <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-slate-100">{proj.name}</CardTitle>
+                    <span className="text-[10px] text-zinc-400 dark:text-slate-400 font-medium">Key: {proj.projectKey}</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-5 pt-0 text-left">
-                <p className="text-xs text-zinc-600 line-clamp-2 h-8">
+                <p className="text-xs text-zinc-600 dark:text-slate-300 line-clamp-2 h-8">
                   {proj.description || 'No project description provided.'}
                 </p>
               </CardContent>
               <CardFooter
-                className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/50 flex justify-between items-center cursor-pointer"
+                className="px-5 py-3 border-t border-zinc-100 dark:border-slate-800 bg-zinc-50/50 dark:bg-slate-800/40 flex justify-between items-center cursor-pointer"
                 onClick={() => navigate(`/workspaces/${workspaceId}/projects/${proj.id}`)}
               >
-                <div className="flex items-center gap-3 text-zinc-500 text-[10px]">
+                <div className="flex items-center gap-3 text-zinc-500 dark:text-slate-400 text-[10px]">
                   <span className="flex items-center gap-1">
-                    <User className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+                    <User className="h-3.5 w-3.5 text-zinc-400 dark:text-slate-500" aria-hidden="true" />
                     {proj.createdBy?.fullName || 'System'}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+                    <Clock className="h-3.5 w-3.5 text-zinc-400 dark:text-slate-500" aria-hidden="true" />
                     {new Date(proj.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-xs font-medium transition-colors">
+                <div className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 text-xs font-medium transition-colors">
                   Open Board
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </div>
@@ -155,13 +155,13 @@ export const ProjectsList: React.FC = () => {
             onChange={(e) => setKey(e.target.value)}
           />
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="project-description" className="text-xs font-medium text-zinc-500">
+            <label htmlFor="project-description" className="text-xs font-medium text-zinc-500 dark:text-slate-400">
               Description
             </label>
             <textarea
               id="project-description"
               aria-label="Description"
-              className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
+              className="flex w-full rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
               placeholder="Describe this project's target objectives..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}

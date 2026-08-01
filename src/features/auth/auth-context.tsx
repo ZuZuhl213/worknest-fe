@@ -12,7 +12,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
-  register: (email: string, password: string, fullName: string) => Promise<AuthResponse>;
+  loginWithGoogle: (credential: string) => Promise<AuthResponse>;
+  register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateCurrentUser: (user: CurrentUser) => void;
@@ -78,15 +79,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async (credential: string) => {
+    try {
+      await fetchCsrfToken();
+      const response = await apiClient.post<AuthResponse>('/api/auth/google', { credential });
+      return await establishSession(response.data);
+    } catch (error) {
+      clearSession();
+      throw error;
+    }
+  };
+
   const register = async (email: string, password: string, fullName: string) => {
     try {
       await fetchCsrfToken();
-      const response = await apiClient.post<AuthResponse>('/api/auth/register', {
+      await apiClient.post('/api/auth/register', {
         email,
         password,
         fullName,
       });
-      return await establishSession(response.data);
     } catch (error) {
       clearSession();
       throw error;
@@ -118,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout, refreshUser, updateCurrentUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, loginWithGoogle, register, logout, refreshUser, updateCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -97,7 +97,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ variant = 'dropdown', 
 
       {isOpen && (
         <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl shadow-slate-900/10 z-50 p-1">
-          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider">
             Giao diện (Theme)
           </div>
           {options.map((opt) => (

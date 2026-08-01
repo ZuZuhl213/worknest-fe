@@ -81,7 +81,7 @@ export const MyTasksView: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50 dark:bg-slate-950">
         <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
       </div>
     );
@@ -105,8 +105,8 @@ export const MyTasksView: React.FC = () => {
       {/* Title Header */}
       <div className="flex items-center justify-between text-left">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">My Tasks</h1>
-          <p className="text-xs text-zinc-500 mt-1">
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-slate-100">My Tasks</h1>
+          <p className="text-xs text-zinc-500 dark:text-slate-400 mt-1">
             Consolidated overview of tasks assigned to you in workspace #{activeWorkspaceId}
           </p>
         </div>
@@ -115,14 +115,14 @@ export const MyTasksView: React.FC = () => {
       <div className="grid grid-cols-1 gap-6">
         {/* Open Tasks List */}
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 p-5">
-            <ClipboardList className="h-4.5 w-4.5 text-indigo-600" aria-hidden="true" />
-            <CardTitle className="text-sm font-semibold text-zinc-950">
+          <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 dark:border-slate-800 p-5">
+            <ClipboardList className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+            <CardTitle className="text-sm font-semibold text-zinc-950 dark:text-slate-100">
               Active Work Items ({openTasks.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 text-left">
-            <div className="divide-y divide-zinc-150">
+            <div className="divide-y divide-zinc-200 dark:divide-slate-800">
               {openTasks.map((task) => (
                 <div
                   key={task.id}
@@ -130,17 +130,17 @@ export const MyTasksView: React.FC = () => {
                     setActiveTaskId(task.id);
                     setActiveProjId(task.projectId);
                   }}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-zinc-50/50 transition-colors cursor-pointer gap-2.5"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-zinc-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer gap-2.5"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <span className="text-[10px] text-zinc-400 font-mono shrink-0 select-none">
+                    <span className="text-[10px] text-zinc-400 dark:text-slate-400 font-mono shrink-0 select-none">
                       {task.projectKey}-{task.taskNumber}
                     </span>
                     <div className="flex flex-col text-left">
-                      <span className="text-xs font-semibold text-zinc-900 line-clamp-1">
+                      <span className="text-xs font-semibold text-zinc-900 dark:text-slate-100 line-clamp-1">
                         {task.title}
                       </span>
-                      <span className="text-[10px] text-zinc-500">Project: {task.projectName}</span>
+                      <span className="text-[10px] text-zinc-500 dark:text-slate-400">Project: {task.projectName}</span>
                     </div>
                   </div>
 
@@ -151,11 +151,11 @@ export const MyTasksView: React.FC = () => {
                     <Badge variant={getPriorityBadgeVariant(task.priority)} className="text-[9px] px-2 py-0">
                       {task.priority}
                     </Badge>
-                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
+                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 dark:text-slate-400 font-medium">
                       <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
                       {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
                     </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-300" aria-hidden="true" />
+                    <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-slate-600" aria-hidden="true" />
                   </div>
                 </div>
               ))}
@@ -175,14 +175,14 @@ export const MyTasksView: React.FC = () => {
 
         {/* Completed Tasks List */}
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 p-5">
+          <CardHeader className="flex flex-row items-center gap-2 border-b border-zinc-100 dark:border-slate-800 p-5">
             <CheckSquare className="h-4.5 w-4.5 text-green-600" aria-hidden="true" />
-            <CardTitle className="text-sm font-semibold text-zinc-950">
+            <CardTitle className="text-sm font-semibold text-zinc-950 dark:text-slate-100">
               Completed Items ({doneTasks.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 text-left">
-            <div className="divide-y divide-zinc-150">
+            <div className="divide-y divide-zinc-200 dark:divide-slate-800">
               {doneTasks.map((task) => (
                 <div
                   key={task.id}
@@ -190,17 +190,17 @@ export const MyTasksView: React.FC = () => {
                     setActiveTaskId(task.id);
                     setActiveProjId(task.projectId);
                   }}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-zinc-50/50 transition-colors cursor-pointer gap-2.5"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-zinc-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer gap-2.5"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <span className="text-[10px] text-zinc-400 font-mono shrink-0 select-none">
+                    <span className="text-[10px] text-zinc-400 dark:text-slate-400 font-mono shrink-0 select-none">
                       {task.projectKey}-{task.taskNumber}
                     </span>
                     <div className="flex flex-col text-left">
-                      <span className="text-xs font-semibold text-zinc-900 line-through text-zinc-500 line-clamp-1">
+                      <span className="text-xs font-semibold text-zinc-500 dark:text-slate-400 line-through line-clamp-1">
                         {task.title}
                       </span>
-                      <span className="text-[10px] text-zinc-400">Project: {task.projectName}</span>
+                      <span className="text-[10px] text-zinc-400 dark:text-slate-400">Project: {task.projectName}</span>
                     </div>
                   </div>
 
@@ -208,11 +208,11 @@ export const MyTasksView: React.FC = () => {
                     <Badge variant="success" className="text-[9px] px-2 py-0">
                       DONE
                     </Badge>
-                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
+                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 dark:text-slate-400 font-medium">
                       Completed:{' '}
                       {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : 'N/A'}
                     </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-300" aria-hidden="true" />
+                    <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-slate-600" aria-hidden="true" />
                   </div>
                 </div>
               ))}

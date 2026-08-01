@@ -27,7 +27,7 @@ export const Avatar: React.FC<AvatarProps> = ({ name, url, size = 'md', classNam
   return (
     <div
       className={cn(
-        'relative inline-flex items-center justify-center rounded-full bg-indigo-50 text-indigo-700 font-medium overflow-hidden select-none shrink-0 border border-indigo-100',
+        'relative inline-flex items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-medium overflow-hidden select-none shrink-0 border border-indigo-100 dark:border-indigo-900',
         sizeClasses[size],
         className
       )}

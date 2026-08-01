@@ -9,6 +9,7 @@ import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
 import { getApiErrorMessage, getApiFieldErrors } from '../../shared/api/client';
 import { Layers } from 'lucide-react';
+import GoogleLoginButton from './google-login-button';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -49,8 +50,8 @@ export const RegisterForm: React.FC = () => {
         data.password, 
         data.fullName
       );
-      toast('Registration successful!', 'success');
-      navigate('/workspaces');
+      toast('Account created. Check your email to continue.', 'success');
+      navigate('/check-email', { state: { email: data.email } });
     } catch (error: unknown) {
       const message = getApiErrorMessage(error, 'Failed to register account');
       const fieldErrors = getApiFieldErrors(error);
@@ -111,6 +112,8 @@ export const RegisterForm: React.FC = () => {
           Register Account
         </Button>
       </form>
+
+      <GoogleLoginButton />
 
       <div className="text-center text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-4">
         Already have an account?{' '}

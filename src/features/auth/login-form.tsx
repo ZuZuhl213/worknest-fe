@@ -8,8 +8,9 @@ import { useToast } from '../../shared/components/toast';
 import Button from '../../shared/components/button';
 import Input from '../../shared/components/input';
 import Modal from '../../shared/components/modal';
-import apiClient, { getApiErrorMessage, getApiFieldErrors } from '../../shared/api/client';
+import apiClient, { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '../../shared/api/client';
 import { Layers, Sparkles, Lock, Mail } from 'lucide-react';
+import GoogleLoginButton from './google-login-button';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -48,6 +49,11 @@ export const LoginForm: React.FC = () => {
       toast('Welcome back to WorkNest!', 'success');
       navigate('/workspaces');
     } catch (error: unknown) {
+      if (getApiErrorCode(error) === 'EMAIL_NOT_VERIFIED') {
+        toast('Verify your email before signing in.', 'error');
+        navigate('/check-email', { state: { email: data.email } });
+        return;
+      }
       const message = getApiErrorMessage(error, 'Invalid email or password');
       const fieldErrors = getApiFieldErrors(error);
       Object.entries(fieldErrors).forEach(([field, fieldMessage]) => {
@@ -131,6 +137,8 @@ export const LoginForm: React.FC = () => {
           Sign In
         </Button>
       </form>
+
+      <GoogleLoginButton />
 
       <div className="text-center text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-4">
         Don't have an account?{' '}

@@ -7,6 +7,8 @@ import { useAuth } from '../features/auth/auth-context';
 
 const LoginForm = React.lazy(() => import('../features/auth/login-form'));
 const RegisterForm = React.lazy(() => import('../features/auth/register-form'));
+const CheckEmailPage = React.lazy(() => import('../features/auth/check-email-page'));
+const VerifyEmailPage = React.lazy(() => import('../features/auth/verify-email-page'));
 const WorkspacesPage = React.lazy(() => import('../features/workspace/workspace-page'));
 const WorkspaceDashboard = React.lazy(() => import('../features/workspace/workspace-dashboard'));
 const ProjectsList = React.lazy(() => import('../features/project/projects-list'));
@@ -16,7 +18,7 @@ const NotificationsFeed = React.lazy(() => import('../features/notification/noti
 const UserProfile = React.lazy(() => import('../features/auth/user-profile'));
 
 const AuthLoadingScreen: React.FC = () => (
-  <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+  <div className="flex h-screen w-screen items-center justify-center bg-zinc-50 dark:bg-slate-950">
     <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
   </div>
 );
@@ -66,6 +68,14 @@ export const router = createBrowserRouter([
       {
         path: 'register',
         element: lazyRoute(<RegisterForm />),
+      },
+      {
+        path: 'check-email',
+        element: lazyRoute(<CheckEmailPage />),
+      },
+      {
+        path: 'verify-email',
+        element: lazyRoute(<VerifyEmailPage />),
       },
     ],
   },

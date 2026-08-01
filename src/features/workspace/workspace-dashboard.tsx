@@ -215,7 +215,7 @@ export const WorkspaceDashboard: React.FC = () => {
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-slate-800 hover:border-zinc-300 dark:hover:border-slate-700 transition-all bg-white dark:bg-slate-900/90"
               >
                 <div className="flex items-start gap-2.5 truncate text-left">
-                  <span className="text-zinc-400 dark:text-slate-500 font-mono mt-0.5 text-xs">[{proj.projectKey}]</span>
+                  <span className="text-zinc-400 dark:text-slate-400 font-mono mt-0.5 text-xs">[{proj.projectKey}]</span>
                   <div className="flex flex-col truncate">
                     <span className="text-xs font-semibold text-zinc-900 dark:text-slate-100 truncate">{proj.name}</span>
                     <span className="text-[10px] text-zinc-500 dark:text-slate-400 truncate">
@@ -232,7 +232,7 @@ export const WorkspaceDashboard: React.FC = () => {
               </div>
             ))}
             {projects.length === 0 && (
-              <div className="text-center py-10 text-zinc-400 dark:text-slate-500 text-xs italic">
+              <div className="text-center py-10 text-zinc-400 dark:text-slate-400 text-xs italic">
                 No projects created in this workspace yet.
               </div>
             )}
@@ -280,7 +280,7 @@ export const WorkspaceDashboard: React.FC = () => {
                           role: e.target.value as WorkspaceRole,
                         })
                       }
-                      className="text-[10px] rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 text-zinc-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                      className="text-[10px] rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 text-zinc-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:[color-scheme:dark] cursor-pointer"
                     >
                       <option value="ADMIN">ADMIN</option>
                       <option value="MEMBER">MEMBER</option>

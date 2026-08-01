@@ -84,12 +84,12 @@ export const UserProfile: React.FC = () => {
     <div className="flex flex-col gap-6 max-w-2xl text-left">
       {/* Title Header */}
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900">User Profile</h1>
-        <p className="text-xs text-zinc-500 mt-1">Review your login credentials and system registration details.</p>
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-slate-100">User Profile</h1>
+        <p className="text-xs text-zinc-500 dark:text-slate-400 mt-1">Review your login credentials and system registration details.</p>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center gap-4 border-b border-zinc-100 p-5">
+        <CardHeader className="flex flex-row items-center gap-4 border-b border-zinc-100 dark:border-slate-800 p-5">
           <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
             <Avatar name={user?.fullName || ''} url={user?.avatarUrl} size="lg" />
             <div className={`absolute inset-0 bg-black/40 rounded-full flex items-center justify-center transition-opacity ${isUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -106,26 +106,26 @@ export const UserProfile: React.FC = () => {
             />
           </div>
           <div className="flex flex-col text-left">
-            <CardTitle className="text-sm font-semibold text-zinc-950">{user?.fullName}</CardTitle>
-            <span className="text-xs text-zinc-500">{user?.email}</span>
+            <CardTitle className="text-sm font-semibold text-zinc-950 dark:text-slate-100">{user?.fullName}</CardTitle>
+            <span className="text-xs text-zinc-500 dark:text-slate-400">{user?.email}</span>
           </div>
         </CardHeader>
         
         <CardContent className="p-5 flex flex-col gap-5 text-left text-xs">
           {/* Metadata Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 border border-zinc-100 rounded-lg p-3 bg-zinc-50/20">
-              <Mail className="h-5 w-5 text-zinc-400 shrink-0" />
+            <div className="flex items-center gap-3 border border-zinc-100 dark:border-slate-800 rounded-lg p-3 bg-zinc-50/20 dark:bg-slate-800/40">
+              <Mail className="h-5 w-5 text-zinc-400 dark:text-slate-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-zinc-500 text-[10px]">EMAIL ADDRESS</span>
-                <span className="text-zinc-800 font-medium">{user?.email}</span>
+                <span className="font-semibold text-zinc-500 dark:text-slate-400 text-[10px]">EMAIL ADDRESS</span>
+                <span className="text-zinc-800 dark:text-slate-200 font-medium">{user?.email}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 border border-zinc-100 rounded-lg p-3 bg-zinc-50/20">
-              <Calendar className="h-5 w-5 text-zinc-400 shrink-0" />
+            <div className="flex items-center gap-3 border border-zinc-100 dark:border-slate-800 rounded-lg p-3 bg-zinc-50/20 dark:bg-slate-800/40">
+              <Calendar className="h-5 w-5 text-zinc-400 dark:text-slate-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-zinc-500 text-[10px]">VERIFICATION STATUS</span>
+                <span className="font-semibold text-zinc-500 dark:text-slate-400 text-[10px]">VERIFICATION STATUS</span>
                 <span className="font-medium">
                   {user?.emailVerified ? (
                     <Badge variant="success" className="text-[9px] px-1.5 py-0">VERIFIED</Badge>
@@ -136,10 +136,10 @@ export const UserProfile: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 border border-zinc-100 rounded-lg p-3 bg-zinc-50/20">
-              <KeyRound className="h-5 w-5 text-zinc-400 shrink-0" />
+            <div className="flex items-center gap-3 border border-zinc-100 dark:border-slate-800 rounded-lg p-3 bg-zinc-50/20 dark:bg-slate-800/40">
+              <KeyRound className="h-5 w-5 text-zinc-400 dark:text-slate-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="font-semibold text-zinc-500 text-[10px]">ACCOUNT STATUS</span>
+                <span className="font-semibold text-zinc-500 dark:text-slate-400 text-[10px]">ACCOUNT STATUS</span>
                 <span className="font-medium">
                   {user?.isActive ? (
                     <Badge variant="success" className="text-[9px] px-1.5 py-0">ACTIVE</Badge>
@@ -151,7 +151,7 @@ export const UserProfile: React.FC = () => {
             </div>
           </div>
 
-          <form onSubmit={handleProfileSave} className="border-t border-zinc-100 pt-5 flex flex-col gap-4">
+          <form onSubmit={handleProfileSave} className="border-t border-zinc-100 dark:border-slate-800 pt-5 flex flex-col gap-4">
             <Input
               label="Full Name"
               value={fullName}

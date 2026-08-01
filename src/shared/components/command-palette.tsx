@@ -141,11 +141,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="relative bg-white border border-zinc-200 shadow-2xl rounded-xl max-w-xl w-full z-10 flex flex-col overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100"
+        className="relative bg-white dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 shadow-2xl rounded-xl max-w-xl w-full z-10 flex flex-col overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100"
       >
         {/* Search Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100">
-          <Search className="h-4 w-4 text-zinc-400 shrink-0" aria-hidden="true" />
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100 dark:border-slate-800">
+          <Search className="h-4 w-4 text-zinc-400 dark:text-slate-500 shrink-0" aria-hidden="true" />
           <input
             ref={inputRef}
             type="text"
@@ -154,9 +154,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none"
+            className="flex-1 bg-transparent text-sm font-medium text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-400 outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded border border-zinc-200">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-zinc-400 dark:text-slate-400 bg-zinc-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-slate-700">
             <Command className="h-3 w-3" /> K
           </kbd>
         </div>
@@ -175,30 +175,30 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                 }}
                 onMouseEnter={() => setSelectedIndex(idx)}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
-                  isSelected ? 'bg-indigo-50 text-indigo-900 font-semibold' : 'text-zinc-700 hover:bg-zinc-50'
+                  isSelected ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 font-semibold' : 'text-zinc-700 dark:text-slate-300 hover:bg-zinc-50 dark:hover:bg-slate-800'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`h-4 w-4 ${isSelected ? 'text-indigo-600' : 'text-zinc-400'}`} aria-hidden="true" />
+                  <Icon className={`h-4 w-4 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400 dark:text-slate-500'}`} aria-hidden="true" />
                   <span>{cmd.title}</span>
                 </div>
-                {isSelected && <ArrowRight className="h-3.5 w-3.5 text-indigo-600" aria-hidden="true" />}
+                {isSelected && <ArrowRight className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />}
               </div>
             );
           })}
 
           {filteredCommands.length === 0 && (
-            <div className="py-8 text-center text-xs text-zinc-400 italic">
+            <div className="py-8 text-center text-xs text-zinc-400 dark:text-slate-400 italic">
               No commands found matching "{query}"
             </div>
           )}
         </div>
 
         {/* Footer shortcuts helper */}
-        <div className="border-t border-zinc-100 px-4 py-2 bg-zinc-50/50 flex items-center justify-between text-[10px] text-zinc-400">
-          <span>Navigation: <kbd className="font-mono bg-white px-1 border rounded">↑</kbd> <kbd className="font-mono bg-white px-1 border rounded">↓</kbd></span>
-          <span>Select: <kbd className="font-mono bg-white px-1 border rounded">Enter</kbd></span>
-          <span>Close: <kbd className="font-mono bg-white px-1 border rounded">Esc</kbd></span>
+        <div className="border-t border-zinc-100 dark:border-slate-800 px-4 py-2 bg-zinc-50/50 dark:bg-slate-950/50 flex items-center justify-between text-[10px] text-zinc-400 dark:text-slate-400">
+          <span>Navigation: <kbd className="font-mono bg-white dark:bg-slate-800 px-1 border dark:border-slate-700 rounded">↑</kbd> <kbd className="font-mono bg-white dark:bg-slate-800 px-1 border dark:border-slate-700 rounded">↓</kbd></span>
+          <span>Select: <kbd className="font-mono bg-white dark:bg-slate-800 px-1 border dark:border-slate-700 rounded">Enter</kbd></span>
+          <span>Close: <kbd className="font-mono bg-white dark:bg-slate-800 px-1 border dark:border-slate-700 rounded">Esc</kbd></span>
         </div>
       </div>
     </div>,

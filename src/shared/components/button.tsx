@@ -20,7 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
     <button
       disabled={disabled || isLoading}
       className={cn(
-        'inline-flex items-center justify-center font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer',
+        'inline-flex items-center justify-center font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 disabled:opacity-50 disabled:pointer-events-none cursor-pointer',
         {
           'bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-indigo-500': variant === 'primary',
           'bg-zinc-100 dark:bg-slate-800 text-zinc-900 dark:text-slate-100 hover:bg-zinc-200 dark:hover:bg-slate-700 focus-visible:ring-zinc-500': variant === 'secondary',

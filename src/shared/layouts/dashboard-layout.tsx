@@ -161,7 +161,7 @@ export const DashboardLayout: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50">
+      <div className="flex h-screen w-screen items-center justify-center bg-zinc-50 dark:bg-slate-950">
         <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent" />
       </div>
     );
@@ -205,7 +205,7 @@ export const DashboardLayout: React.FC = () => {
           {/* Switcher Dropdown */}
           {showWorkspaceDropdown && (
             <div className="absolute top-13 left-4 right-4 z-50 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-lg p-1 flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-zinc-400 px-2 py-1 select-none">SWITCH WORKSPACE</span>
+              <span className="text-[10px] font-semibold text-zinc-400 dark:text-slate-400 px-2 py-1 select-none">SWITCH WORKSPACE</span>
               <div className="max-h-40 overflow-y-auto flex flex-col">
                 {workspaces.map(w => (
                   <button
@@ -214,19 +214,19 @@ export const DashboardLayout: React.FC = () => {
                       setShowWorkspaceDropdown(false);
                       navigate(`/workspaces/${w.id}/dashboard`);
                     }}
-                    className={`flex items-center text-xs px-2.5 py-1.5 rounded-md hover:bg-zinc-50 text-left cursor-pointer truncate ${w.id === activeWorkspaceId ? 'font-medium bg-zinc-50 text-indigo-600' : 'text-zinc-700'}`}
+                    className={`flex items-center text-xs px-2.5 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-700 text-left cursor-pointer truncate ${w.id === activeWorkspaceId ? 'font-medium bg-zinc-50 dark:bg-slate-700 text-indigo-600 dark:text-indigo-300' : 'text-zinc-700 dark:text-slate-300'}`}
                   >
                     {w.name}
                   </button>
                 ))}
               </div>
-              <div className="border-t border-zinc-100 mt-1 pt-1">
+              <div className="border-t border-zinc-100 dark:border-slate-700 mt-1 pt-1">
                 <button
                   onClick={() => {
                     setShowWorkspaceDropdown(false);
                     setWorkspaceModalOpen(true);
                   }}
-                  className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium px-2 py-1.5 rounded-md hover:bg-indigo-50/30 w-full text-left cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium px-2 py-1.5 rounded-md hover:bg-indigo-50/30 dark:hover:bg-indigo-950/50 w-full text-left cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   New Workspace
@@ -250,7 +250,7 @@ export const DashboardLayout: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-900' : 'text-zinc-400'}`} />
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-900 dark:text-slate-100' : 'text-zinc-400 dark:text-slate-500'}`} />
                   <span>{link.label}</span>
                 </div>
                 {!!link.badge && (
@@ -276,8 +276,8 @@ export const DashboardLayout: React.FC = () => {
                     <Link
                       key={proj.id}
                       to={path}
-                      className={`text-xs px-2 py-1.5 rounded-md hover:bg-zinc-50 transition-colors block truncate ${
-                        isActive ? 'font-medium bg-zinc-50 text-indigo-600' : 'text-zinc-500 hover:text-zinc-900'
+                      className={`text-xs px-2 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800 transition-colors block truncate ${
+                        isActive ? 'font-medium bg-zinc-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-300' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100'
                       }`}
                     >
                       # {proj.name}
@@ -285,7 +285,7 @@ export const DashboardLayout: React.FC = () => {
                   );
                 })}
                 {projects.length === 0 && (
-                  <span className="text-[10px] text-zinc-400 italic px-2">No projects created yet</span>
+                  <span className="text-[10px] text-zinc-400 dark:text-slate-400 italic px-2">No projects created yet</span>
                 )}
               </div>
             </div>
@@ -304,7 +304,7 @@ export const DashboardLayout: React.FC = () => {
           <button 
             onClick={handleLogout}
             title="Log Out"
-            className="text-zinc-400 hover:text-zinc-600 p-1 rounded-md hover:bg-zinc-50 cursor-pointer"
+            className="text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-200 p-1 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800 cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -314,8 +314,8 @@ export const DashboardLayout: React.FC = () => {
       {/* Main Panel Content */}
       <div className="flex flex-col flex-1 h-full overflow-hidden">
         {/* Top bar header */}
-        <header className="h-14 border-b border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-6 shrink-0 z-10">
-          <div className="flex items-center gap-3">
+        <header className="h-14 border-b border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-3 sm:px-6 shrink-0 z-10">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Menu Toggle Button */}
             <button 
               onClick={() => setMobileMenuOpen(true)}
@@ -323,47 +323,47 @@ export const DashboardLayout: React.FC = () => {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <span className="text-xs font-semibold text-zinc-400 dark:text-slate-500 select-none">
+            <span className="hidden sm:inline text-xs font-semibold text-zinc-400 dark:text-slate-400 select-none">
               WorkNest
             </span>
             <button
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Open Command Palette (Ctrl+K)"
-              className="flex items-center gap-2 bg-zinc-50 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 hover:border-zinc-300 dark:hover:border-slate-600 rounded-xl px-3 py-1.5 text-xs text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="flex items-center gap-2 bg-zinc-50 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 hover:border-zinc-300 dark:hover:border-slate-600 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-slate-500" aria-hidden="true" />
-              <span>Search commands...</span>
+              <span className="hidden sm:inline">Search commands...</span>
               <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-zinc-400 dark:text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-slate-700">
                 <Command className="h-3 w-3" aria-hidden="true" /> K
               </kbd>
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <ThemeToggle variant="compact" />
             <div className="relative flex items-center" ref={notifDropdownRef}>
               <button
                 onClick={() => setShowNotifDropdown(v => !v)}
-                className="relative p-1.5 rounded-full hover:bg-zinc-50 text-zinc-400 hover:text-zinc-700 cursor-pointer transition-colors"
+                className="relative p-1.5 rounded-full hover:bg-zinc-50 dark:hover:bg-slate-800 text-zinc-400 dark:text-slate-500 hover:text-zinc-700 dark:hover:text-slate-200 cursor-pointer transition-colors"
                 title="Notifications"
               >
                 <Bell className="h-[18px] w-[18px]" />
                 {unreadNotifications > 0 && (
-                  <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-red-500 ring-1 ring-white" />
+                  <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-red-500 ring-1 ring-white dark:ring-slate-900" />
                 )}
               </button>
 
               {/* Notification Dropdown */}
               {showNotifDropdown && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-80 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 flex flex-col overflow-hidden"
+                  className="fixed inset-x-4 top-16 w-auto mt-0 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 bg-white dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-xl z-50 flex flex-col overflow-hidden"
                   style={{ animation: 'notifDropIn 0.15s cubic-bezier(0.16,1,0.3,1)' }}
                 >
                   {/* Dropdown header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-slate-800">
                     <div className="flex items-center gap-2">
-                      <Inbox className="h-4 w-4 text-indigo-600" />
-                      <span className="text-sm font-semibold text-zinc-900">Notifications</span>
+                      <Inbox className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-slate-100">Notifications</span>
                       {unreadNotifications > 0 && (
                         <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none">
                           {unreadNotifications}
@@ -374,7 +374,7 @@ export const DashboardLayout: React.FC = () => {
                       <button
                         onClick={() => readAllNotifMutation.mutate()}
                         disabled={readAllNotifMutation.isPending}
-                        className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold cursor-pointer disabled:opacity-50"
                       >
                         <CheckCheck className="h-3.5 w-3.5" />
                         Mark all read
@@ -383,9 +383,9 @@ export const DashboardLayout: React.FC = () => {
                   </div>
 
                   {/* Notification list */}
-                  <div className="max-h-80 overflow-y-auto divide-y divide-zinc-100">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-zinc-100 dark:divide-slate-800">
                     {notifications.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 gap-2 text-zinc-400">
+                      <div className="flex flex-col items-center justify-center py-10 gap-2 text-zinc-400 dark:text-slate-400">
                         <Bell className="h-8 w-8 opacity-30" />
                         <span className="text-xs italic">All caught up! No notifications.</span>
                       </div>
@@ -395,22 +395,22 @@ export const DashboardLayout: React.FC = () => {
                           key={notif.id}
                           className={`flex items-start gap-3 px-4 py-3 transition-colors ${
                             !notif.read
-                              ? 'bg-indigo-50/40 border-l-2 border-indigo-500'
-                              : 'bg-white border-l-2 border-transparent'
+                              ? 'bg-indigo-50/40 dark:bg-indigo-950/30 border-l-2 border-indigo-500'
+                              : 'bg-white dark:bg-slate-900 border-l-2 border-transparent'
                           }`}
                         >
                           {/* Unread dot */}
                           <div className="mt-1 shrink-0">
                             <span className={`block w-2 h-2 rounded-full ${
-                              !notif.read ? 'bg-indigo-500' : 'bg-zinc-200'
+                              !notif.read ? 'bg-indigo-500' : 'bg-zinc-200 dark:bg-slate-700'
                             }`} />
                           </div>
                           <div className="flex-1 flex flex-col gap-0.5 min-w-0">
                             <p className={`text-xs font-semibold leading-snug ${
-                              !notif.read ? 'text-zinc-900' : 'text-zinc-600'
+                              !notif.read ? 'text-zinc-900 dark:text-slate-100' : 'text-zinc-600 dark:text-slate-300'
                             }`}>{notif.title}</p>
-                            <p className="text-[11px] text-zinc-500 leading-snug line-clamp-2">{notif.content}</p>
-                            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-zinc-400">
+                            <p className="text-[11px] text-zinc-500 dark:text-slate-400 leading-snug line-clamp-2">{notif.content}</p>
+                            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-zinc-400 dark:text-slate-400">
                               <Clock className="h-3 w-3" />
                               {new Date(notif.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                             </div>
@@ -419,7 +419,7 @@ export const DashboardLayout: React.FC = () => {
                             <button
                               onClick={() => readNotifMutation.mutate(notif.id)}
                               disabled={readNotifMutation.isPending && readNotifMutation.variables === notif.id}
-                              className="shrink-0 p-1 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 rounded cursor-pointer transition-colors"
+                              className="shrink-0 p-1 text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded cursor-pointer transition-colors"
                               title="Mark as read"
                             >
                               <Check className="h-3.5 w-3.5" />
@@ -432,11 +432,11 @@ export const DashboardLayout: React.FC = () => {
 
                   {/* Footer link to full notifications page */}
                   {activeWorkspaceId && (
-                    <div className="border-t border-zinc-100 px-4 py-2.5">
+                    <div className="border-t border-zinc-100 dark:border-slate-800 px-4 py-2.5">
                       <Link
                         to={`/workspaces/${activeWorkspaceId}/notifications`}
                         onClick={() => setShowNotifDropdown(false)}
-                        className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center justify-center gap-1"
+                        className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold flex items-center justify-center gap-1"
                       >
                         View all notifications →
                       </Link>
@@ -447,7 +447,7 @@ export const DashboardLayout: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <span className="hidden sm:inline text-xs font-medium text-zinc-700">{user?.fullName}</span>
+              <span className="hidden sm:inline text-xs font-medium text-zinc-700 dark:text-slate-300">{user?.fullName}</span>
               <Avatar name={user?.fullName || ''} size="sm" />
             </div>
           </div>
@@ -465,10 +465,10 @@ export const DashboardLayout: React.FC = () => {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[1px]" onClick={() => setMobileMenuOpen(false)} />
-          <div className="relative flex flex-col w-full max-w-xs bg-white h-full p-4 shadow-xl animate-in slide-in-from-left duration-200">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
-              <span className="font-semibold text-zinc-900 text-sm">Navigation Menu</span>
-              <button onClick={() => setMobileMenuOpen(false)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
+          <div className="relative flex flex-col w-full max-w-xs bg-white dark:bg-slate-900 h-full p-4 shadow-xl animate-in slide-in-from-left duration-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-slate-800 pb-3 mb-4">
+              <span className="font-semibold text-zinc-900 dark:text-slate-100 text-sm">Navigation Menu</span>
+              <button onClick={() => setMobileMenuOpen(false)} className="text-zinc-400 dark:text-slate-500 hover:text-zinc-700 dark:hover:text-slate-200 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -480,10 +480,10 @@ export const DashboardLayout: React.FC = () => {
                     key={link.label}
                     to={link.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between text-xs px-3 py-2 rounded-md hover:bg-zinc-50 font-medium text-zinc-600 hover:text-zinc-950"
+                    className="flex items-center justify-between text-xs px-3 py-2 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800 font-medium text-zinc-600 dark:text-slate-300 hover:text-zinc-950 dark:hover:text-slate-100"
                   >
                     <div className="flex items-center gap-2">
-                      <link.icon className="h-4 w-4 text-zinc-400" />
+                      <link.icon className="h-4 w-4 text-zinc-400 dark:text-slate-500" />
                       <span>{link.label}</span>
                     </div>
                     {!!link.badge && (
@@ -496,14 +496,14 @@ export const DashboardLayout: React.FC = () => {
               </div>
             </div>
 
-            <div className="border-t border-zinc-100 pt-4 flex items-center justify-between">
+            <div className="border-t border-zinc-100 dark:border-slate-800 pt-4 flex items-center justify-between">
               <div className="flex items-center gap-2 truncate">
                 <Avatar name={user?.fullName || ''} size="sm" />
-                <span className="text-xs font-medium text-zinc-900 truncate">{user?.fullName}</span>
+                <span className="text-xs font-medium text-zinc-900 dark:text-slate-100 truncate">{user?.fullName}</span>
               </div>
               <button 
                 onClick={handleLogout}
-                className="text-zinc-400 hover:text-zinc-600 p-1 cursor-pointer"
+                className="text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-200 p-1 cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -537,10 +537,10 @@ export const DashboardLayout: React.FC = () => {
             onChange={e => setNewWorkspaceSlug(slugify(e.target.value))}
           />
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-500">Description</label>
+            <label className="text-xs font-medium text-zinc-500 dark:text-slate-400">Description</label>
             <textarea
               aria-label="Description"
-              className="flex w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
+              className="flex w-full rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-zinc-900 dark:text-slate-100 placeholder:text-zinc-400 dark:placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
               placeholder="Describe this workspace workspace..."
               value={newWorkspaceDesc}
               onChange={e => setNewWorkspaceDesc(e.target.value)}
