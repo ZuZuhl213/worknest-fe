@@ -196,13 +196,13 @@ export const WorkspacesPage: React.FC = () => {
                   />
                 </div>
               )}
-              <Button
+              {user?.canCreateWorkspace && <Button
                 onClick={() => setModalOpen(true)}
                 className="flex items-center justify-center gap-2 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md shadow-indigo-500/20 rounded-xl px-4 py-2 cursor-pointer border-0"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 New Workspace
-              </Button>
+              </Button>}
             </div>
           </div>
 
@@ -212,9 +212,9 @@ export const WorkspacesPage: React.FC = () => {
               <EmptyState
                 icon={Building2}
                 title="No workspaces found"
-                description="You are not registered in any workspaces yet. Build your first workspace to start organizing projects and tasks."
-                actionLabel="Create First Workspace"
-                onAction={() => setModalOpen(true)}
+                description={user?.canCreateWorkspace ? 'You are not registered in any workspaces yet. Build your first workspace to start organizing projects and tasks.' : 'You are not registered in any workspaces yet. Ask a system administrator to grant workspace creation.'}
+                actionLabel={user?.canCreateWorkspace ? 'Create First Workspace' : undefined}
+                onAction={user?.canCreateWorkspace ? () => setModalOpen(true) : undefined}
               />
             ) : filteredWorkspaces.length === 0 ? (
               <div className="py-12 text-center text-slate-500 dark:text-slate-400 text-xs">

@@ -64,6 +64,9 @@ export const WorkspaceDashboard: React.FC = () => {
   const currentMember = members.find((m) => m.user.id === user?.id);
   const userRole = currentMember?.role || (workspace?.owner.id === user?.id ? 'OWNER' : 'MEMBER');
   const canManageMembers = userRole === 'OWNER' || userRole === 'ADMIN';
+  const manageableRoles: WorkspaceRole[] = userRole === 'OWNER'
+    ? ['ADMIN', 'MANAGER', 'MEMBER']
+    : userRole === 'ADMIN' ? ['MANAGER', 'MEMBER'] : [];
 
   // Member invitation mutation
   const inviteMutation = useMutation({
@@ -270,7 +273,7 @@ export const WorkspaceDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {canManageMembers && member.user.id !== user?.id && member.role !== 'OWNER' ? (
+                  {canManageMembers && member.user.id !== user?.id && manageableRoles.includes(member.role) ? (
                     <select
                       aria-label={`Role for ${member.user.fullName}`}
                       value={member.role}
@@ -282,8 +285,7 @@ export const WorkspaceDashboard: React.FC = () => {
                       }
                       className="text-[10px] rounded-lg border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 text-zinc-700 dark:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:[color-scheme:dark] cursor-pointer"
                     >
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="MEMBER">MEMBER</option>
+                      {manageableRoles.map((role) => <option key={role} value={role}>{role}</option>)}
                     </select>
                   ) : (
                     <Badge
@@ -294,7 +296,7 @@ export const WorkspaceDashboard: React.FC = () => {
                     </Badge>
                   )}
 
-                  {canManageMembers && member.user.id !== user?.id && member.role !== 'OWNER' && (
+                  {canManageMembers && member.user.id !== user?.id && manageableRoles.includes(member.role) && (
                     <button
                       onClick={() => {
                         if (confirm(`Remove ${member.user.fullName} from this workspace?`)) {
@@ -357,8 +359,7 @@ export const WorkspaceDashboard: React.FC = () => {
               onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
               className="flex w-full rounded-xl border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
             >
-              <option value="MEMBER">MEMBER</option>
-              <option value="ADMIN">ADMIN</option>
+              {manageableRoles.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">

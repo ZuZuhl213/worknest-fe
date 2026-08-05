@@ -4,7 +4,7 @@ import { useAuth } from '../../features/auth/auth-context';
 import { ThemeToggle } from '../theme/theme-toggle';
 
 export const AuthLayout: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -18,7 +18,7 @@ export const AuthLayout: React.FC = () => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/workspaces" replace />;
+    return <Navigate to={user?.systemRole === 'SYSTEM_ADMIN' ? '/admin' : '/workspaces'} replace />;
   }
 
   return (

@@ -1,5 +1,5 @@
-export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER';
-export type SystemRole = 'USER' | 'ADMIN';
+export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MANAGER' | 'MEMBER';
+export type SystemRole = 'USER' | 'SYSTEM_ADMIN';
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 
@@ -12,6 +12,7 @@ export interface AuthUser {
   avatarUrl?: string;
   emailVerified: boolean;
   systemRole: SystemRole;
+  canCreateWorkspace: boolean;
 }
 
 export interface CurrentUser {
@@ -22,6 +23,7 @@ export interface CurrentUser {
   emailVerified: boolean;
   isActive: boolean;
   systemRole: SystemRole;
+  canCreateWorkspace: boolean;
   lastLoginAt?: string;
 }
 
@@ -40,10 +42,20 @@ export interface User {
   isActive: boolean;
   emailVerified: boolean;
   systemRole: SystemRole;
+  canCreateWorkspace: boolean;
   deactivatedAt?: string;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SecurityAuditLog {
+  id: number;
+  action: string;
+  actor?: Pick<User, 'id' | 'email' | 'fullName'>;
+  target?: Pick<User, 'id' | 'email' | 'fullName'>;
+  outcome: string;
+  createdAt: string;
 }
 
 export interface WorkspaceOwner {
@@ -210,4 +222,12 @@ export interface PagedResponse<T> {
   totalPages: number;
   first: boolean;
   last: boolean;
+}
+
+export interface AdminOverview {
+  totalAccounts: number;
+  activeAccounts: number;
+  disabledAccounts: number;
+  emailVerifiedAccounts: number;
+  recentUsers: User[];
 }

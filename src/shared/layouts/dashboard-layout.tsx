@@ -31,6 +31,7 @@ import {
   Inbox,
   Search,
   Command,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
@@ -180,6 +181,7 @@ export const DashboardLayout: React.FC = () => {
     { label: 'My Tasks', path: `/workspaces/${activeWorkspaceId}/tasks`, icon: CheckSquare },
     { label: 'Notifications', path: `/workspaces/${activeWorkspaceId}/notifications`, icon: Bell, badge: unreadNotifications },
     { label: 'Profile', path: `/workspaces/${activeWorkspaceId}/profile`, icon: User },
+    ...(user?.systemRole === 'SYSTEM_ADMIN' ? [{ label: 'Admin Console', path: '/admin', icon: ShieldCheck }] : []),
   ] : [];
 
   return (
@@ -220,7 +222,7 @@ export const DashboardLayout: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <div className="border-t border-zinc-100 dark:border-slate-700 mt-1 pt-1">
+               {user?.canCreateWorkspace && <div className="border-t border-zinc-100 dark:border-slate-700 mt-1 pt-1">
                 <button
                   onClick={() => {
                     setShowWorkspaceDropdown(false);
@@ -231,7 +233,8 @@ export const DashboardLayout: React.FC = () => {
                   <Plus className="h-3.5 w-3.5" />
                   New Workspace
                 </button>
-              </div>
+               </div>
+               }
             </div>
           )}
         </div>

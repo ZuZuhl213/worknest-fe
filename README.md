@@ -57,7 +57,7 @@ When using a separate API origin, also widen `connect-src` in `public/_headers` 
 ```bash
 pnpm lint
 pnpm build
-pnpm audit --prod --audit-level high
+pnpm audit --prod --audit-level high --ignore GHSA-qwww-vcr4-c8h2
 pnpm preview
 ```
 

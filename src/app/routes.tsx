@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import AuthLayout from '../shared/layouts/auth-layout';
 import DashboardLayout from '../shared/layouts/dashboard-layout';
+import AdminLayout from '../shared/layouts/admin-layout';
 import ErrorBoundary from '../shared/components/error-boundary';
 import { useAuth } from '../features/auth/auth-context';
 
@@ -16,6 +17,10 @@ const ProjectDetailView = React.lazy(() => import('../features/project/project-d
 const MyTasksView = React.lazy(() => import('../features/task/my-tasks-view'));
 const NotificationsFeed = React.lazy(() => import('../features/notification/notifications-feed'));
 const UserProfile = React.lazy(() => import('../features/auth/user-profile'));
+const AdminOverview = React.lazy(() => import('../features/admin/admin-overview'));
+const AdminUsers = React.lazy(() => import('../features/admin/admin-users'));
+const AdminUserDetail = React.lazy(() => import('../features/admin/admin-user-detail'));
+const SecurityAuditLogs = React.lazy(() => import('../features/admin/security-audit-logs'));
 
 const AuthLoadingScreen: React.FC = () => (
   <div className="flex h-screen w-screen items-center justify-center bg-zinc-50 dark:bg-slate-950">
@@ -32,18 +37,18 @@ const lazyRoute = (element: React.ReactNode) => (
 );
 
 const RootRedirect: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return <AuthLoadingScreen />;
 
-  return isAuthenticated ? <Navigate to="/workspaces" replace /> : <Navigate to="/login" replace />;
+  return isAuthenticated ? <Navigate to={user?.systemRole === 'SYSTEM_ADMIN' ? '/admin' : '/workspaces'} replace /> : <Navigate to="/login" replace />;
 };
 
 const GuestOnlyRoute: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return <AuthLoadingScreen />;
-  return isAuthenticated ? <Navigate to="/workspaces" replace /> : <AuthLayout />;
+  return isAuthenticated ? <Navigate to={user?.systemRole === 'SYSTEM_ADMIN' ? '/admin' : '/workspaces'} replace /> : <AuthLayout />;
 };
 
 const ProtectedRoute: React.FC = () => {
@@ -51,6 +56,20 @@ const ProtectedRoute: React.FC = () => {
 
   if (isLoading) return <AuthLoadingScreen />;
   return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const AdminRoute: React.FC = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <AuthLoadingScreen />;
+  return user?.systemRole === 'SYSTEM_ADMIN' ? <Outlet /> : <Navigate to="/workspaces" replace />;
+};
+
+const WorkspaceRoute: React.FC = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <AuthLoadingScreen />;
+  return user?.systemRole === 'SYSTEM_ADMIN' ? <Navigate to="/admin" replace /> : <Outlet />;
 };
 
 export const router = createBrowserRouter([
@@ -83,36 +102,36 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        path: 'workspaces',
-        element: lazyRoute(<WorkspacesPage />),
-      },
-      {
-        path: 'workspaces/:workspaceId',
-        element: <DashboardLayout />,
+        element: <AdminRoute />,
         children: [
           {
-            path: 'dashboard',
-            element: lazyRoute(<WorkspaceDashboard />),
+            path: 'admin',
+            element: <AdminLayout />,
+            children: [
+              { index: true, element: lazyRoute(<AdminOverview />) },
+              { path: 'users', element: lazyRoute(<AdminUsers />) },
+              { path: 'users/:userId', element: lazyRoute(<AdminUserDetail />) },
+              { path: 'security-audit-logs', element: lazyRoute(<SecurityAuditLogs />) },
+            ],
           },
+        ],
+      },
+      {
+        path: 'workspaces',
+        element: <WorkspaceRoute />,
+        children: [
+          { index: true, element: lazyRoute(<WorkspacesPage />) },
           {
-            path: 'projects',
-            element: lazyRoute(<ProjectsList />),
-          },
-          {
-            path: 'projects/:projectId',
-            element: lazyRoute(<ProjectDetailView />),
-          },
-          {
-            path: 'tasks',
-            element: lazyRoute(<MyTasksView />),
-          },
-          {
-            path: 'notifications',
-            element: lazyRoute(<NotificationsFeed />),
-          },
-          {
-            path: 'profile',
-            element: lazyRoute(<UserProfile />),
+            path: ':workspaceId',
+            element: <DashboardLayout />,
+            children: [
+              { path: 'dashboard', element: lazyRoute(<WorkspaceDashboard />) },
+              { path: 'projects', element: lazyRoute(<ProjectsList />) },
+              { path: 'projects/:projectId', element: lazyRoute(<ProjectDetailView />) },
+              { path: 'tasks', element: lazyRoute(<MyTasksView />) },
+              { path: 'notifications', element: lazyRoute(<NotificationsFeed />) },
+              { path: 'profile', element: lazyRoute(<UserProfile />) },
+            ],
           },
         ],
       },

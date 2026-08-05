@@ -12,6 +12,9 @@ export const queryKeys = {
   attachments: (taskId?: number) => ['attachments', taskId] as const,
   myTasks: (workspaceId?: number, userId?: number) => ['my-tasks', workspaceId, userId] as const,
   notifications: () => ['notifications'] as const,
+  adminUsers: (filters: Record<string, unknown>) => ['admin-users', filters] as const,
+  adminUser: (userId?: number) => ['admin-user', userId] as const,
+  securityAuditLogs: (filters: Record<string, unknown>) => ['security-audit-logs', filters] as const,
 };
 
 export default queryKeys;

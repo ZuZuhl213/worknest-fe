@@ -45,9 +45,9 @@ export const LoginForm: React.FC = () => {
   const onSubmit = async (data: LoginSchema) => {
     clearErrors('root.server');
     try {
-      await login(data.email, data.password);
+      const response = await login(data.email, data.password);
       toast('Welcome back to WorkNest!', 'success');
-      navigate('/workspaces');
+      navigate(response.user.systemRole === 'SYSTEM_ADMIN' ? '/admin' : '/workspaces');
     } catch (error: unknown) {
       if (getApiErrorCode(error) === 'EMAIL_NOT_VERIFIED') {
         toast('Verify your email before signing in.', 'error');

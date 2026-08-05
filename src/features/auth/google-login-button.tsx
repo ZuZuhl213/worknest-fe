@@ -25,9 +25,9 @@ export const GoogleLoginButton: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await loginWithGoogle(credential);
+      const response = await loginWithGoogle(credential);
       toast('Signed in with Google.', 'success');
-      navigate('/workspaces');
+      navigate(response.user.systemRole === 'SYSTEM_ADMIN' ? '/admin' : '/workspaces');
     } catch (error: unknown) {
       toast(getApiErrorMessage(error, 'Unable to sign in with Google'), 'error');
     } finally {
