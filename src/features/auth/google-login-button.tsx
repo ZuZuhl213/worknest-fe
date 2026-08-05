@@ -42,7 +42,7 @@ export const GoogleLoginButton: React.FC = () => {
         or continue with
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
       </div>
-      <div className={`flex min-h-10 w-full justify-center overflow-hidden [&>div]:!w-full [&_iframe]:!w-full ${isSubmitting ? 'pointer-events-none opacity-60' : ''}`}>
+      <div className={`flex min-h-10 w-full justify-center overflow-hidden ${isSubmitting ? 'pointer-events-none opacity-60' : ''}`}>
         <GoogleLogin
           onSuccess={(response) => void handleCredential(response.credential)}
           onError={() => toast('Google sign-in was cancelled or failed.', 'error')}
