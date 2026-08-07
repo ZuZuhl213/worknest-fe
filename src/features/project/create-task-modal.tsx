@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import Modal from '../../shared/components/modal';
 import Input from '../../shared/components/input';
 import Button from '../../shared/components/button';
-import type { WorkspaceMember, TaskPriority } from '../../types';
+import type { WorkspaceMember, TaskPriority, TaskStatus } from '../../types';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   workspaceMembers: WorkspaceMember[];
+  initialStatus?: TaskStatus;
   onCreateTask: (data: {
     title: string;
     description: string;
     priority: TaskPriority;
+    status?: TaskStatus;
     assigneeUserId?: number;
     dueDate?: string;
   }) => void;
@@ -22,14 +24,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
   workspaceMembers,
+  initialStatus,
   onCreateTask,
   isPending,
 }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('MEDIUM');
+  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>(initialStatus || 'TODO');
   const [newTaskAssignee, setNewTaskAssignee] = useState<string>('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen) setNewTaskStatus(initialStatus ?? 'TODO');
+  }, [isOpen, initialStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +47,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       title: newTaskTitle,
       description: newTaskDesc,
       priority: newTaskPriority,
+      status: newTaskStatus,
       assigneeUserId: newTaskAssignee ? parseInt(newTaskAssignee, 10) : undefined,
       dueDate: newTaskDueDate ? new Date(newTaskDueDate).toISOString() : undefined,
     });
@@ -46,6 +55,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     setNewTaskTitle('');
     setNewTaskDesc('');
     setNewTaskPriority('MEDIUM');
+    setNewTaskStatus(initialStatus || 'TODO');
     setNewTaskAssignee('');
     setNewTaskDueDate('');
   };
@@ -75,6 +85,22 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
+            <label htmlFor="task-status" className="text-xs font-medium text-zinc-500 dark:text-slate-400">
+              Status
+            </label>
+            <select
+              id="task-status"
+              value={newTaskStatus}
+              onChange={(e) => setNewTaskStatus(e.target.value as TaskStatus)}
+              className="flex w-full rounded-md border border-zinc-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-zinc-900 dark:text-slate-100 dark:[color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+            >
+              <option value="TODO">Todo</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="REVIEW">Review</option>
+              <option value="DONE">Done</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
             <label htmlFor="task-priority" className="text-xs font-medium text-zinc-500 dark:text-slate-400">
               Priority
             </label>
@@ -90,6 +116,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <option value="URGENT">Urgent</option>
             </select>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="task-assignee" className="text-xs font-medium text-zinc-500 dark:text-slate-400">
               Assignee
@@ -108,14 +136,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               ))}
             </select>
           </div>
+          <Input
+            label="Due Date"
+            type="datetime-local"
+            className="dark:[color-scheme:dark]"
+            value={newTaskDueDate}
+            onChange={(e) => setNewTaskDueDate(e.target.value)}
+          />
         </div>
-        <Input
-          label="Due Date"
-          type="datetime-local"
-          className="dark:[color-scheme:dark]"
-          value={newTaskDueDate}
-          onChange={(e) => setNewTaskDueDate(e.target.value)}
-        />
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="outline" className="cursor-pointer" onClick={onClose}>
             Cancel

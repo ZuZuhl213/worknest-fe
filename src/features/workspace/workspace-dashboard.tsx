@@ -144,7 +144,7 @@ export const WorkspaceDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 text-left">
+    <div className="flex flex-col min-h-full gap-6 text-left">
       {/* Dashboard Headline */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -316,26 +316,18 @@ export const WorkspaceDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Danger Zone - Only visible to Workspace Owner */}
+      {/* Delete Workspace Action - Only visible to Workspace Owner */}
       {userRole === 'OWNER' && (
-        <Card className="border-red-200 dark:border-red-900/60 bg-red-50/20 dark:bg-red-950/20 p-5 mt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-bold text-red-700 dark:text-red-400">Danger Zone</h3>
-              <p className="text-xs text-zinc-500 dark:text-slate-400">
-                Once you delete a workspace, there is no going back. All projects, tasks, and members will be removed.
-              </p>
-            </div>
-            <Button
-              variant="danger"
-              onClick={handleDeleteWorkspace}
-              isLoading={deleteWorkspaceMutation.isPending}
-              className="shrink-0 text-xs font-medium cursor-pointer rounded-xl"
-            >
-              Delete Workspace
-            </Button>
-          </div>
-        </Card>
+        <div className="mt-auto pt-6 flex justify-end">
+          <Button
+            variant="danger"
+            onClick={handleDeleteWorkspace}
+            isLoading={deleteWorkspaceMutation.isPending}
+            className="text-xs font-medium cursor-pointer rounded-xl"
+          >
+            Delete Workspace
+          </Button>
+        </div>
       )}
 
       {/* Member Invitation Modal Dialog */}

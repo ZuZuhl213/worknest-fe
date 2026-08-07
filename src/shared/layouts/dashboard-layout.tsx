@@ -18,7 +18,6 @@ import {
   FolderKanban, 
   CheckSquare, 
   Bell, 
-  User, 
   ChevronDown, 
   Plus, 
   LogOut, 
@@ -32,6 +31,7 @@ import {
   Search,
   Command,
   ShieldCheck,
+  ChevronLeft,
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
@@ -42,6 +42,7 @@ export const DashboardLayout: React.FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
@@ -51,6 +52,7 @@ export const DashboardLayout: React.FC = () => {
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const notifDropdownRef = useRef<HTMLDivElement>(null);
+  const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
@@ -74,6 +76,17 @@ export const DashboardLayout: React.FC = () => {
     if (showNotifDropdown) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showNotifDropdown]);
+
+  // Close workspace dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(e.target as Node)) {
+        setShowWorkspaceDropdown(false);
+      }
+    };
+    if (showWorkspaceDropdown) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showWorkspaceDropdown]);
 
   const slugify = (text: string) => {
     return text
@@ -119,11 +132,12 @@ export const DashboardLayout: React.FC = () => {
   const readAllNotifMutation = useMutation({
     mutationFn: async () => {
       const unread = notifications.filter(n => !n.read);
-      await Promise.all(unread.map(n => apiClient.patch(`/api/notifications/${n.id}/read`)));
+      const results = await Promise.allSettled(unread.map(n => apiClient.patch(`/api/notifications/${n.id}/read`)));
+      return results.filter((result) => result.status === 'rejected').length;
     },
-    onSuccess: () => {
+    onSuccess: (failedCount) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications() });
-      toast('All notifications marked as read', 'success');
+      toast(failedCount ? `${failedCount} notifications could not be marked as read` : 'All notifications marked as read', failedCount ? 'error' : 'success');
     },
   });
 
@@ -180,7 +194,6 @@ export const DashboardLayout: React.FC = () => {
     { label: 'Projects', path: `/workspaces/${activeWorkspaceId}/projects`, icon: FolderKanban },
     { label: 'My Tasks', path: `/workspaces/${activeWorkspaceId}/tasks`, icon: CheckSquare },
     { label: 'Notifications', path: `/workspaces/${activeWorkspaceId}/notifications`, icon: Bell, badge: unreadNotifications },
-    { label: 'Profile', path: `/workspaces/${activeWorkspaceId}/profile`, icon: User },
     ...(user?.systemRole === 'SYSTEM_ADMIN' ? [{ label: 'Admin Console', path: '/admin', icon: ShieldCheck }] : []),
   ] : [];
 
@@ -188,26 +201,53 @@ export const DashboardLayout: React.FC = () => {
     <>
     <div className="flex h-screen w-screen bg-zinc-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-200">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex md:flex-col md:w-60 shrink-0 border-r border-zinc-200 dark:border-slate-800/80 bg-white dark:bg-slate-900">
+      <aside
+        onClick={() => sidebarCollapsed && setSidebarCollapsed(false)}
+        className="hidden md:flex md:flex-col shrink-0 border-r border-indigo-100 dark:border-indigo-950/60 bg-indigo-50/60 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-all duration-300 cursor-pointer select-none"
+        style={{ width: sidebarCollapsed ? '4rem' : '15rem' }}
+      >
         {/* Workspace Switcher Header */}
-        <div className="relative border-b border-zinc-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+        <div
+          className="relative border-b border-indigo-100/80 dark:border-slate-800 px-3 py-3 flex items-center gap-1"
+          ref={workspaceDropdownRef}
+          onClick={(event) => event.stopPropagation()}
+        >
           <button 
-            onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-            className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-slate-100 hover:bg-zinc-50 dark:hover:bg-slate-800 rounded-md p-1.5 w-full text-left justify-between cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!sidebarCollapsed) {
+                setShowWorkspaceDropdown(!showWorkspaceDropdown);
+              }
+            }}
+            className={`flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white hover:bg-indigo-100/50 dark:hover:bg-slate-800 rounded-lg p-1.5 w-full text-left cursor-pointer transition-colors ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}
+            title={sidebarCollapsed && activeWorkspace ? activeWorkspace.name : undefined}
           >
             <div className="flex items-center gap-2 truncate">
-              <div className="w-6 h-6 rounded bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-center shrink-0">
-                <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-xs">
+                <Building2 className="h-4 w-4 text-white" />
               </div>
-              <span className="truncate">{activeWorkspace ? activeWorkspace.name : 'Select Workspace'}</span>
+              {!sidebarCollapsed && <span className="truncate">{activeWorkspace ? activeWorkspace.name : 'Select Workspace'}</span>}
             </div>
-            <ChevronDown className="h-4 w-4 text-zinc-400 dark:text-slate-500 shrink-0" />
+            {!sidebarCollapsed && <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />}
           </button>
+          {!sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setSidebarCollapsed(true);
+              }}
+              aria-label="Collapse sidebar"
+              className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-indigo-100/50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
 
           {/* Switcher Dropdown */}
-          {showWorkspaceDropdown && (
-            <div className="absolute top-13 left-4 right-4 z-50 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-lg p-1 flex flex-col gap-1">
-              <span className="text-[10px] font-semibold text-zinc-400 dark:text-slate-400 px-2 py-1 select-none">SWITCH WORKSPACE</span>
+          {showWorkspaceDropdown && !sidebarCollapsed && (
+            <div className="absolute top-14 left-3 right-3 z-50 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl shadow-xl p-1.5 flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-zinc-400 dark:text-slate-400 px-2 py-1 select-none tracking-wider">SWITCH WORKSPACE</span>
               <div className="max-h-40 overflow-y-auto flex flex-col">
                 {workspaces.map(w => (
                   <button
@@ -216,7 +256,7 @@ export const DashboardLayout: React.FC = () => {
                       setShowWorkspaceDropdown(false);
                       navigate(`/workspaces/${w.id}/dashboard`);
                     }}
-                    className={`flex items-center text-xs px-2.5 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-700 text-left cursor-pointer truncate ${w.id === activeWorkspaceId ? 'font-medium bg-zinc-50 dark:bg-slate-700 text-indigo-600 dark:text-indigo-300' : 'text-zinc-700 dark:text-slate-300'}`}
+                    className={`flex items-center text-xs px-2.5 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-slate-700 text-left cursor-pointer truncate transition-colors ${w.id === activeWorkspaceId ? 'font-semibold bg-indigo-600 text-white' : 'text-slate-700 dark:text-slate-200'}`}
                   >
                     {w.name}
                   </button>
@@ -228,7 +268,7 @@ export const DashboardLayout: React.FC = () => {
                     setShowWorkspaceDropdown(false);
                     setWorkspaceModalOpen(true);
                   }}
-                  className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium px-2 py-1.5 rounded-md hover:bg-indigo-50/30 dark:hover:bg-indigo-950/50 w-full text-left cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium px-2 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/50 w-full text-left cursor-pointer transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   New Workspace
@@ -240,7 +280,16 @@ export const DashboardLayout: React.FC = () => {
         </div>
 
         {/* Sidebar Nav Links */}
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
+        <nav
+          className="flex-1 px-2.5 py-4 flex flex-col gap-1.5 overflow-y-auto"
+          onClick={(event) => {
+            if (sidebarCollapsed && event.target === event.currentTarget) {
+              setSidebarCollapsed(false);
+            } else {
+              event.stopPropagation();
+            }
+          }}
+        >
           {sidebarLinks.map(link => {
             const Icon = link.icon;
             const isActive = location.pathname.startsWith(link.path);
@@ -248,18 +297,24 @@ export const DashboardLayout: React.FC = () => {
               <Link
                 key={link.label}
                 to={link.path}
-                className={`flex items-center justify-between text-xs px-3 py-2 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800/80 font-medium transition-colors ${
-                  isActive ? 'bg-zinc-100 dark:bg-slate-800 text-zinc-900 dark:text-white font-semibold' : 'text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100'
-                }`}
+                title={sidebarCollapsed ? link.label : undefined}
+                className={`relative flex items-center justify-between text-xs py-2.5 rounded-lg font-medium transition-all ${
+                  isActive
+                    ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-indigo-100/50 dark:hover:bg-slate-800'
+                } ${sidebarCollapsed ? 'px-0 justify-center' : 'px-3'}`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-900 dark:text-slate-100' : 'text-zinc-400 dark:text-slate-500'}`} />
-                  <span>{link.label}</span>
+                <div className={`flex items-center ${sidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                  {!sidebarCollapsed && <span>{link.label}</span>}
                 </div>
-                {!!link.badge && (
+                {!sidebarCollapsed && !!link.badge && (
                   <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-bold">
                     {link.badge}
                   </span>
+                )}
+                {sidebarCollapsed && !!link.badge && (
+                  <span className="absolute right-2 top-2 w-2 h-2 rounded-full bg-red-500" />
                 )}
               </Link>
             );
@@ -267,11 +322,15 @@ export const DashboardLayout: React.FC = () => {
 
           {/* Active Workspace Projects directory */}
           {activeWorkspaceId && (
-            <div className="mt-6 flex flex-col gap-1.5">
+            <div className={`mt-6 flex flex-col gap-2 ${sidebarCollapsed ? 'items-center' : ''}`}>
               <div className="flex items-center justify-between px-3">
-                <span className="text-[10px] font-semibold text-zinc-400 select-none">PROJECTS</span>
+                {!sidebarCollapsed ? (
+                  <span className="text-[10px] font-bold text-slate-400 select-none tracking-wider">PROJECTS</span>
+                ) : (
+                  <span className="text-[10px] font-bold text-slate-400 select-none tracking-wider" title="Projects">PRJ</span>
+                )}
               </div>
-              <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto px-1.5">
+              <div className={`flex flex-col gap-1 max-h-48 overflow-y-auto px-1 ${sidebarCollapsed ? 'w-full' : ''}`}>
                 {projects.map(proj => {
                   const path = `/workspaces/${activeWorkspaceId}/projects/${proj.id}`;
                   const isActive = location.pathname === path;
@@ -279,16 +338,21 @@ export const DashboardLayout: React.FC = () => {
                     <Link
                       key={proj.id}
                       to={path}
-                      className={`text-xs px-2 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800 transition-colors block truncate ${
-                        isActive ? 'font-medium bg-zinc-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-300' : 'text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100'
-                      }`}
+                      title={sidebarCollapsed ? proj.name : undefined}
+                      className={`text-xs rounded-lg transition-colors block truncate ${
+                        isActive ? 'font-semibold bg-indigo-100 dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-slate-700' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-indigo-100/40 dark:hover:bg-slate-800/40'
+                      } ${sidebarCollapsed ? 'text-center py-2 px-0' : 'px-2.5 py-1.5'}`}
                     >
-                      # {proj.name}
+                      {sidebarCollapsed ? (
+                        <span className="font-mono">{proj.name.substring(0, 2).toUpperCase()}</span>
+                      ) : (
+                        `# ${proj.name}`
+                      )}
                     </Link>
                   );
                 })}
-                {projects.length === 0 && (
-                  <span className="text-[10px] text-zinc-400 dark:text-slate-400 italic px-2">No projects created yet</span>
+                {projects.length === 0 && !sidebarCollapsed && (
+                  <span className="text-[10px] text-slate-400 italic px-2">No projects created yet</span>
                 )}
               </div>
             </div>
@@ -296,18 +360,25 @@ export const DashboardLayout: React.FC = () => {
         </nav>
 
         {/* User Footer Profile */}
-        <div className="border-t border-zinc-100 dark:border-slate-800 p-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 truncate">
+        <div className={`border-t border-indigo-100/80 dark:border-slate-800 p-3 flex items-center ${sidebarCollapsed ? 'justify-center flex-col gap-2' : 'justify-between'}`} onClick={(event) => event.stopPropagation()}>
+          <Link
+            to={activeWorkspaceId ? `/workspaces/${activeWorkspaceId}/profile` : '#'}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer truncate"
+            title={user?.fullName || 'User Profile'}
+          >
             <Avatar name={user?.fullName || ''} size="sm" />
-            <div className="flex flex-col text-left truncate">
-              <span className="text-xs font-semibold text-zinc-900 dark:text-slate-100 truncate">{user?.fullName}</span>
-              <span className="text-[10px] text-zinc-500 dark:text-slate-400 truncate">{user?.email}</span>
-            </div>
-          </div>
+            {!sidebarCollapsed && (
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{user?.fullName}</span>
+            )}
+          </Link>
           <button 
-            onClick={handleLogout}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleLogout();
+            }}
             title="Log Out"
-            className="text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-200 p-1 rounded-md hover:bg-zinc-50 dark:hover:bg-slate-800 cursor-pointer"
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1.5 rounded-lg hover:bg-indigo-100/50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -449,10 +520,6 @@ export const DashboardLayout: React.FC = () => {
               )}
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline text-xs font-medium text-zinc-700 dark:text-slate-300">{user?.fullName}</span>
-              <Avatar name={user?.fullName || ''} size="sm" />
-            </div>
           </div>
         </header>
 
@@ -500,12 +567,17 @@ export const DashboardLayout: React.FC = () => {
             </div>
 
             <div className="border-t border-zinc-100 dark:border-slate-800 pt-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 truncate">
+              <Link
+                to={activeWorkspaceId ? `/workspaces/${activeWorkspaceId}/profile` : '#'}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 truncate"
+              >
                 <Avatar name={user?.fullName || ''} size="sm" />
                 <span className="text-xs font-medium text-zinc-900 dark:text-slate-100 truncate">{user?.fullName}</span>
-              </div>
+              </Link>
               <button 
                 onClick={handleLogout}
+                aria-label="Log Out"
                 className="text-zinc-400 dark:text-slate-500 hover:text-zinc-600 dark:hover:text-slate-200 p-1 cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />

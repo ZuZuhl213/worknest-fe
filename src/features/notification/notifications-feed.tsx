@@ -36,15 +36,12 @@ export const NotificationsFeed: React.FC = () => {
   const readAllMutation = useMutation({
     mutationFn: async () => {
       const unread = notifications.filter((n) => !n.read);
-      const promises = unread.map((n) => apiClient.patch(`/api/notifications/${n.id}/read`));
-      await Promise.all(promises);
+      const results = await Promise.allSettled(unread.map((n) => apiClient.patch(`/api/notifications/${n.id}/read`)));
+      return results.filter((result) => result.status === 'rejected').length;
     },
-    onSuccess: () => {
+    onSuccess: (failedCount) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications() });
-      toast('All notifications marked as read', 'success');
-    },
-    onError: () => {
-      toast('Failed to mark all notifications as read', 'error');
+      toast(failedCount ? `${failedCount} notifications could not be marked as read` : 'All notifications marked as read', failedCount ? 'error' : 'success');
     },
   });
 

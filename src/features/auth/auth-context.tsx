@@ -1,8 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AuthResponse, CurrentUser } from '../../types';
 import apiClient, {
   fetchCsrfToken,
+  beginSession,
+  getSessionVersion,
   refreshAccessToken,
   setAccessToken,
 } from '../../shared/api/client';
@@ -26,29 +28,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
+  const isMounted = useRef(false);
 
   const clearSession = useCallback(() => {
     setAccessToken(null);
     queryClient.clear();
-    setUser(null);
-    setIsAuthenticated(false);
+    if (isMounted.current) {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   }, [queryClient]);
 
-  const loadCurrentUser = useCallback(async () => {
+  const loadCurrentUser = useCallback(async (expectedSessionVersion = getSessionVersion()) => {
     const response = await apiClient.get<CurrentUser>('/api/auth/me');
+    if (!isMounted.current || expectedSessionVersion !== getSessionVersion()) return;
     setUser(response.data);
     setIsAuthenticated(true);
   }, []);
 
   useEffect(() => {
+    isMounted.current = true;
     const bootstrap = async () => {
+      const expectedSessionVersion = getSessionVersion();
       try {
         await refreshAccessToken();
-        await loadCurrentUser();
+        if (expectedSessionVersion !== getSessionVersion()) return;
+        await loadCurrentUser(expectedSessionVersion);
       } catch {
-        clearSession();
+        if (expectedSessionVersion === getSessionVersion()) clearSession();
       } finally {
-        setIsLoading(false);
+        if (isMounted.current) setIsLoading(false);
       }
     };
 
@@ -58,34 +67,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     };
     window.addEventListener('auth-logout', handleLogoutEvent);
-    return () => window.removeEventListener('auth-logout', handleLogoutEvent);
+    return () => {
+      isMounted.current = false;
+      window.removeEventListener('auth-logout', handleLogoutEvent);
+    };
   }, [clearSession, loadCurrentUser]);
 
-  const establishSession = async (response: AuthResponse) => {
-    setAccessToken(response.accessToken);
+  const establishSession = async (response: AuthResponse, expectedSessionVersion: number) => {
+    if (!setAccessToken(response.accessToken, expectedSessionVersion)) return response;
     queryClient.clear();
-    await loadCurrentUser();
+    await loadCurrentUser(expectedSessionVersion);
     return response;
   };
 
   const login = async (email: string, password: string) => {
+    const expectedSessionVersion = beginSession();
     try {
       await fetchCsrfToken();
       const response = await apiClient.post<AuthResponse>('/api/auth/login', { email, password });
-      return await establishSession(response.data);
+      return await establishSession(response.data, expectedSessionVersion);
     } catch (error) {
-      clearSession();
+      if (expectedSessionVersion === getSessionVersion()) clearSession();
       throw error;
     }
   };
 
   const loginWithGoogle = async (credential: string) => {
+    const expectedSessionVersion = beginSession();
     try {
       await fetchCsrfToken();
       const response = await apiClient.post<AuthResponse>('/api/auth/google', { credential });
-      return await establishSession(response.data);
+      return await establishSession(response.data, expectedSessionVersion);
     } catch (error) {
-      clearSession();
+      if (expectedSessionVersion === getSessionVersion()) clearSession();
       throw error;
     }
   };
@@ -124,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateCurrentUser = (nextUser: CurrentUser) => {
+    if (!isMounted.current) return;
     setUser(nextUser);
     setIsAuthenticated(true);
   };

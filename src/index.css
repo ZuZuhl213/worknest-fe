@@ -3,39 +3,86 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #4f46e5;
-  --color-primary-hover: #4338ca;
-  --color-accent: #6366f1;
-  --color-neutral-bg: #fafafa;
-  --color-sidebar-bg: #f4f4f5;
-  --color-border-custom: #e4e4e7;
-  
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-sidebar-bg: var(--sidebar-bg);
+
   /* Statuses */
-  --color-todo: #71717a;
-  --color-in-progress: #4f46e5;
-  --color-review: #a855f7;
-  --color-done: #22c55e;
-  
+  --color-todo: var(--status-todo);
+  --color-in-progress: var(--status-in-progress);
+  --color-review: var(--status-review);
+  --color-done: var(--status-done);
+
   /* Priorities */
-  --color-priority-low: #71717a;
-  --color-priority-medium: #d97706;
-  --color-priority-high: #ea580c;
-  --color-priority-urgent: #dc2626;
+  --color-priority-low: var(--priority-low);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-high: var(--priority-high);
+  --color-priority-urgent: var(--priority-urgent);
 }
 
 @layer base {
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --fg: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --accent: #6366f1;
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --sidebar-bg: #f4f4f5;
+
+    --status-todo: #71717a;
+    --status-in-progress: #4f46e5;
+    --status-review: #a855f7;
+    --status-done: #22c55e;
+
+    --priority-low: #71717a;
+    --priority-medium: #d97706;
+    --priority-high: #ea580c;
+    --priority-urgent: #dc2626;
+  }
+
+  .dark {
+    --bg: #0b0f19;
+    --surface: #0f172a;
+    --fg: #f3f4f6;
+    --muted: #9ca3af;
+    --border: #1e293b;
+    --accent: #818cf8;
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --sidebar-bg: #1e293b;
+
+    --status-todo: #a1a1aa;
+    --status-in-progress: #818cf8;
+    --status-review: #c084fc;
+    --status-done: #4ade80;
+
+    --priority-low: #a1a1aa;
+    --priority-medium: #fbbf24;
+    --priority-high: #f97316;
+    --priority-urgent: #ef4444;
+  }
+
   body {
-    background-color: #fafafa;
-    color: #18181b;
+    background-color: var(--bg);
+    color: var(--fg);
     font-family: Inter, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .dark body {
-    background-color: #0b0f19;
-    color: #f3f4f6;
+  .uppercase-label {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 }
 

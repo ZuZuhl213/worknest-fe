@@ -133,7 +133,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   });
 
   const updateTask = useMutation({
-    mutationFn: (updates: Partial<Task> & { assigneeUserId?: number | null }) => {
+    mutationFn: (updates: Omit<Partial<Task>, 'dueDate'> & { assigneeUserId?: number | null; dueDate?: string | null }) => {
       const payload = {
         title: updates.title ?? task?.title ?? '',
         description: updates.description ?? task?.description ?? '',
@@ -274,14 +274,52 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
           {/* Body */}
           {isLoading || !task ? (
-            <div className="flex flex-1 items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-7 w-7 border-2 border-indigo-600 border-t-transparent" />
+            <div className="flex flex-1 min-h-0 overflow-hidden animate-pulse">
+              {/* Left Column Skeleton (~65%) */}
+              <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto" style={{ flexBasis: '65%' }}>
+                <div className="h-8 bg-zinc-200 dark:bg-slate-700 rounded-md w-3/4" />
+                <div className="space-y-2">
+                  <div className="h-4 bg-zinc-200 dark:bg-slate-700 rounded w-24" />
+                  <div className="h-20 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-zinc-200 dark:bg-slate-700 rounded w-20" />
+                  <div className="flex gap-2">
+                    <div className="h-6 bg-zinc-200 dark:bg-slate-700 rounded-md w-16" />
+                    <div className="h-6 bg-zinc-200 dark:bg-slate-700 rounded-md w-16" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-zinc-200 dark:bg-slate-700 rounded w-28" />
+                  <div className="h-10 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                  <div className="h-10 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                </div>
+              </div>
+              {/* Right Column Skeleton (~35%) */}
+              <div className="w-72 shrink-0 border-l border-zinc-100 dark:border-slate-800 bg-zinc-50/40 dark:bg-slate-950/50 p-6 flex flex-col gap-6" style={{ flexBasis: '35%' }}>
+                <div className="space-y-2">
+                  <div className="h-3 bg-zinc-200 dark:bg-slate-700 rounded w-16" />
+                  <div className="h-8 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-zinc-200 dark:bg-slate-700 rounded w-16" />
+                  <div className="h-8 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-zinc-200 dark:bg-slate-700 rounded w-16" />
+                  <div className="h-8 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-zinc-200 dark:bg-slate-700 rounded w-16" />
+                  <div className="h-8 bg-zinc-200 dark:bg-slate-700 rounded-md w-full" />
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex flex-1 min-h-0 overflow-hidden">
 
-              {/* LEFT: main content */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+              {/* LEFT: main content (~65%) */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5" style={{ flexBasis: '65%' }}>
 
                 {/* Title */}
                 <div className="group">
@@ -613,8 +651,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* RIGHT: sidebar properties */}
-              <div className="w-56 shrink-0 border-l border-zinc-100 dark:border-slate-800 bg-zinc-50/40 dark:bg-slate-950/50 px-4 py-5 flex flex-col gap-5 overflow-y-auto">
+              {/* RIGHT: sidebar properties (~35%) */}
+              <div className="w-72 md:w-80 shrink-0 border-l border-zinc-100 dark:border-slate-800 bg-zinc-50/40 dark:bg-slate-950/50 px-4 py-5 flex flex-col gap-5 overflow-y-auto" style={{ flexBasis: '35%' }}>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-semibold text-zinc-400 dark:text-slate-400 uppercase tracking-widest">Status</label>
@@ -690,7 +728,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     value={task.dueDate ? task.dueDate.split('T')[0] : ''}
                     onChange={e => {
                       const val = e.target.value;
-                      updateTask.mutate({ dueDate: val ? new Date(val).toISOString() : undefined });
+                      updateTask.mutate({ dueDate: val ? new Date(val).toISOString() : null });
                     }}
                     disabled={!canEditCurrentTask}
                     className="w-full text-xs font-medium border border-zinc-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-zinc-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-70"

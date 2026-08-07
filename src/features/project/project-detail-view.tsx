@@ -40,6 +40,8 @@ export const ProjectDetailView: React.FC = () => {
     dragOverColumn,
     createModalOpen,
     setCreateModalOpen,
+    createModalInitialStatus,
+    setCreateModalInitialStatus,
     membersModalOpen,
     setMembersModalOpen,
     addProjectMemberMutation,
@@ -75,7 +77,10 @@ export const ProjectDetailView: React.FC = () => {
           </Button>
           {canCreateProjectTask && (
             <Button
-              onClick={() => setCreateModalOpen(true)}
+              onClick={() => {
+                setCreateModalInitialStatus('TODO');
+                setCreateModalOpen(true);
+              }}
               className="flex items-center gap-1.5 text-xs font-medium cursor-pointer"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
@@ -160,7 +165,10 @@ export const ProjectDetailView: React.FC = () => {
           title="No tasks in this project yet"
           description="Get started by creating the first task for your team."
           actionLabel={canCreateProjectTask ? 'Create Task' : undefined}
-          onAction={canCreateProjectTask ? () => setCreateModalOpen(true) : undefined}
+          onAction={canCreateProjectTask ? () => {
+            setCreateModalInitialStatus('TODO');
+            setCreateModalOpen(true);
+          } : undefined}
         />
       ) : (
         <TaskBoard
@@ -178,6 +186,10 @@ export const ProjectDetailView: React.FC = () => {
           onStatusChange={(taskId, status, task) =>
             updateTaskStatusMutation.mutate({ taskId, status, task })
           }
+          onAddTask={(status) => {
+            setCreateModalInitialStatus(status);
+            setCreateModalOpen(true);
+          }}
         />
       )}
 
@@ -204,6 +216,7 @@ export const ProjectDetailView: React.FC = () => {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         workspaceMembers={members}
+        initialStatus={createModalInitialStatus}
         onCreateTask={(data) => createTaskMutation.mutate(data)}
         isPending={createTaskMutation.isPending}
       />

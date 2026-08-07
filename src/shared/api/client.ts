@@ -11,10 +11,18 @@ type ApiErrorBody = {
 
 let accessToken: string | null = null;
 let csrfToken: string | null = null;
+let sessionVersion = 0;
 
-export const setAccessToken = (token: string | null) => {
+export const beginSession = () => ++sessionVersion;
+
+export const setAccessToken = (token: string | null, expectedSessionVersion?: number) => {
+  if (expectedSessionVersion !== undefined && expectedSessionVersion !== sessionVersion) return false;
+  if (token === null) sessionVersion += 1;
   accessToken = token;
+  return true;
 };
+
+export const getSessionVersion = () => sessionVersion;
 
 export const getAccessToken = () => accessToken;
 
@@ -84,9 +92,12 @@ const attachCsrfToken = (config: InternalAxiosRequestConfig) => {
 authClient.interceptors.request.use(attachCsrfToken);
 
 export const refreshAccessToken = async () => {
+  const expectedSessionVersion = sessionVersion;
   await fetchCsrfToken();
   const response = await authClient.post<AuthResponse>('/api/auth/refresh');
-  setAccessToken(response.data.accessToken);
+  if (!setAccessToken(response.data.accessToken, expectedSessionVersion)) {
+    throw new Error('Session changed while refreshing access token');
+  }
   return response.data;
 };
 
@@ -100,6 +111,7 @@ apiClient.interceptors.request.use((config) => {
 
 type RetryableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
 let refreshPromise: Promise<string> | null = null;
+let refreshPromiseVersion: number | null = null;
 
 const forceLogout = () => {
   setAccessToken(null);
@@ -120,19 +132,22 @@ apiClient.interceptors.response.use(
 
     originalRequest._retry = true;
     if (!refreshPromise) {
+      refreshPromiseVersion = sessionVersion;
       refreshPromise = refreshAccessToken()
         .then((session) => session.accessToken)
         .finally(() => {
           refreshPromise = null;
+          refreshPromiseVersion = null;
         });
     }
+    const expectedRefreshVersion = refreshPromiseVersion;
 
     try {
       const token = await refreshPromise;
       originalRequest.headers.Authorization = `Bearer ${token}`;
       return apiClient(originalRequest);
     } catch (refreshError) {
-      forceLogout();
+      if (expectedRefreshVersion === sessionVersion) forceLogout();
       return Promise.reject(refreshError);
     }
   },

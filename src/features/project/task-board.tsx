@@ -1,8 +1,8 @@
 import React from 'react';
 import Badge from '../../shared/components/badge';
 import Avatar from '../../shared/components/avatar';
-import { canEditTask } from '../../shared/lib/permissions';
-import { Clock, CheckSquare } from 'lucide-react';
+import { canEditTask, canCreateTask } from '../../shared/lib/permissions';
+import { Clock, CheckSquare, Plus } from 'lucide-react';
 import type { Project, Task, TaskStatus, TaskPriority, CurrentUser } from '../../types';
 
 const STATUS_COLUMNS: { label: string; value: TaskStatus; bg: string; text: string }[] = [
@@ -25,6 +25,7 @@ interface TaskBoardProps {
   onDrop: (e: React.DragEvent, status: TaskStatus) => void;
   onTaskClick: (taskId: number) => void;
   onStatusChange: (taskId: number, status: TaskStatus, task: Task) => void;
+  onAddTask?: (status: TaskStatus) => void;
 }
 
 export const TaskBoard: React.FC<TaskBoardProps> = ({
@@ -40,7 +41,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   onDrop,
   onTaskClick,
   onStatusChange,
+  onAddTask,
 }) => {
+  const canAddTask = canCreateTask(project);
+  const draggingTask = tasks.find((task) => task.id === draggingTaskId);
+  const tasksByStatus = tasks.reduce<Partial<Record<TaskStatus, Task[]>>>((grouped, task) => {
+    (grouped[task.status] ??= []).push(task);
+    return grouped;
+  }, {});
   const getPriorityBadgeVariant = (priority: TaskPriority) => {
     switch (priority) {
       case 'URGENT':
@@ -51,14 +59,15 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         return 'info';
       case 'LOW':
         return 'default';
+      default:
+        return 'default';
     }
   };
 
   return (
     <div className="flex-1 overflow-x-auto min-h-0 flex gap-4 pb-4 text-left">
       {STATUS_COLUMNS.map((col) => {
-        const columnTasks = tasks.filter((t) => t.status === col.value);
-        const draggingTask = tasks.find((t) => t.id === draggingTaskId);
+        const columnTasks = tasksByStatus[col.value] ?? [];
         const canDropDraggingTask = canEditTask(project, draggingTask, currentUser?.id);
 
         return (
@@ -101,6 +110,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             <div className="flex-1 overflow-y-auto p-2.5 flex flex-col gap-2.5">
               {columnTasks.map((task) => {
                 const canDragTask = canEditTask(project, task, currentUser?.id);
+                const completedSubtaskCount = task.subtasks?.filter((subtask) => subtask.completed).length ?? 0;
                 return (
                   <div
                     key={task.id}
@@ -108,27 +118,34 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     onDragStart={canDragTask ? (e) => onDragStart(e, task) : undefined}
                     onDragEnd={canDragTask ? onDragEnd : undefined}
                     onClick={() => onTaskClick(task.id)}
-                    className={`p-3 bg-white dark:bg-slate-900 border rounded-lg shadow-xs transition-all text-left flex flex-col gap-2 select-none ${
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                      event.preventDefault();
+                      onTaskClick(task.id);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    className={`p-3 bg-white dark:bg-slate-900 border rounded-lg shadow-xs transition-all duration-150 text-left flex flex-col gap-2 select-none ${
                       canDragTask ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                     } ${
                       draggingTaskId === task.id
                         ? 'opacity-60 dark:opacity-70 border-dashed border-indigo-300 dark:border-indigo-500 scale-95 shadow-none'
-                        : 'border-zinc-200 dark:border-slate-800 hover:border-zinc-300 dark:hover:border-slate-600 hover:shadow-sm'
+                        : 'border-zinc-200 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-900/60 hover:-translate-y-0.5 hover:shadow-xs'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-[10px] text-zinc-400 dark:text-slate-400 font-mono">
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <span className="text-[10px] text-zinc-500 dark:text-slate-400 font-mono font-medium">
                         {project?.projectKey}-{task.taskNumber}
                       </span>
                       <Badge
                         variant={getPriorityBadgeVariant(task.priority)}
-                        className="text-[9px] px-1.5 py-0 font-medium"
+                        className="text-[9px] px-1.5 py-0 font-medium uppercase tracking-wider"
                       >
                         {task.priority}
                       </Badge>
                     </div>
 
-                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-slate-100 line-clamp-2">
+                    <h4 className="text-sm font-medium text-zinc-900 dark:text-slate-100 leading-snug line-clamp-2">
                       {task.title}
                     </h4>
 
@@ -142,6 +159,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                             lower === 'frontend' ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900' :
                             lower === 'backend' ? 'bg-green-50 dark:bg-green-950/60 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900' :
                             'bg-zinc-100 dark:bg-slate-800 text-zinc-700 dark:text-slate-300 border-zinc-200 dark:border-slate-700';
+
                           return (
                             <span key={tag} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${badgeColor}`}>
                               {tag}
@@ -152,18 +170,29 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     )}
 
                     {task.description && (
-                      <p className="text-[11px] text-zinc-500 dark:text-slate-400 line-clamp-2">{task.description}</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-slate-400 line-clamp-2 leading-relaxed mt-0.5">{task.description}</p>
                     )}
 
                     {task.subtasks && task.subtasks.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-slate-400 font-medium">
-                        <CheckSquare className="h-3 w-3 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
-                        <span>{task.subtasks.filter((s) => s.completed).length} / {task.subtasks.length} subtasks</span>
+                      <div className="flex flex-col gap-1 mt-1">
+                        <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-slate-400 font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <CheckSquare className="h-3.5 w-3.5 text-zinc-400 dark:text-slate-500" aria-hidden="true" />
+                            <span>Subtasks</span>
+                          </div>
+                          <span>{completedSubtaskCount}/{task.subtasks.length}</span>
+                        </div>
+                        <div className="w-full bg-zinc-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-300"
+                            style={{ width: `${(completedSubtaskCount / task.subtasks.length) * 100}%` }}
+                          />
+                        </div>
                       </div>
                     )}
 
                     {/* Card Footer Info */}
-                    <div className="flex items-center justify-between gap-2 border-t border-zinc-100 dark:border-slate-800 pt-2.5 mt-1 shrink-0">
+                    <div className="flex items-center justify-between gap-2 pt-1 mt-2 shrink-0">
                       <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-slate-400">
                         <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                         {task.dueDate ? (
@@ -228,6 +257,20 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Quick Add Task Button at bottom of column */}
+            {canAddTask && onAddTask && (
+              <div className="p-2 border-t border-zinc-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900 rounded-b-lg">
+                <button
+                  type="button"
+                  onClick={() => onAddTask(col.value)}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-medium text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-slate-100 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Add Task</span>
+                </button>
+              </div>
+            )}
           </div>
         );
       })}

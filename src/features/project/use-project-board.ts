@@ -35,6 +35,7 @@ export function useProjectBoard(activeWorkspaceId: number, activeProjectId: numb
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalInitialStatus, setCreateModalInitialStatus] = useState<TaskStatus | undefined>(undefined);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
 
   // 1. Fetch project meta
@@ -168,6 +169,7 @@ export function useProjectBoard(activeWorkspaceId: number, activeProjectId: numb
       title: string;
       description: string;
       priority: TaskPriority;
+      status?: TaskStatus;
       assigneeUserId?: number;
       dueDate?: string;
     }) =>
@@ -314,6 +316,8 @@ export function useProjectBoard(activeWorkspaceId: number, activeProjectId: numb
     dragOverColumn,
     createModalOpen,
     setCreateModalOpen,
+    createModalInitialStatus,
+    setCreateModalInitialStatus,
     membersModalOpen,
     setMembersModalOpen,
     addProjectMemberMutation,
