@@ -13,7 +13,7 @@ interface CreateTaskModalProps {
     title: string;
     description: string;
     priority: TaskPriority;
-    status?: TaskStatus;
+    status: TaskStatus;
     assigneeUserId?: number;
     dueDate?: string;
   }) => void;
@@ -36,7 +36,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
 
   React.useEffect(() => {
-    if (isOpen) setNewTaskStatus(initialStatus ?? 'TODO');
+    if (isOpen) {
+      setNewTaskStatus(initialStatus ?? 'TODO');
+    } else {
+      setNewTaskTitle('');
+      setNewTaskDesc('');
+      setNewTaskPriority('MEDIUM');
+      setNewTaskAssignee('');
+      setNewTaskDueDate('');
+    }
   }, [isOpen, initialStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -51,13 +59,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       assigneeUserId: newTaskAssignee ? parseInt(newTaskAssignee, 10) : undefined,
       dueDate: newTaskDueDate ? new Date(newTaskDueDate).toISOString() : undefined,
     });
-
-    setNewTaskTitle('');
-    setNewTaskDesc('');
-    setNewTaskPriority('MEDIUM');
-    setNewTaskStatus(initialStatus || 'TODO');
-    setNewTaskAssignee('');
-    setNewTaskDueDate('');
   };
 
   return (

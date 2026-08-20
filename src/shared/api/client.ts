@@ -13,6 +13,18 @@ let accessToken: string | null = null;
 let csrfToken: string | null = null;
 let sessionVersion = 0;
 
+const authChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('worknest_auth') : null;
+
+if (authChannel) {
+  authChannel.onmessage = (event) => {
+    if (event.data === 'logout') {
+      accessToken = null;
+      sessionVersion += 1;
+      window.dispatchEvent(new Event('auth-logout'));
+    }
+  };
+}
+
 export const beginSession = () => ++sessionVersion;
 
 export const setAccessToken = (token: string | null, expectedSessionVersion?: number) => {
@@ -115,6 +127,7 @@ let refreshPromiseVersion: number | null = null;
 
 const forceLogout = () => {
   setAccessToken(null);
+  authChannel?.postMessage('logout');
   window.dispatchEvent(new Event('auth-logout'));
 };
 

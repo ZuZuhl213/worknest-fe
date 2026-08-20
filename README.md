@@ -1,64 +1,68 @@
 # WorkNest Frontend
 
-React, TypeScript, Vite, Tailwind CSS frontend for WorkNest.
+Giao diện người dùng cho hệ thống WorkNest xây dựng trên React 19, TypeScript, Vite và Tailwind CSS.
 
-## Local Development
+---
 
-```bash
-pnpm install
-pnpm dev
-```
+## Tính năng chính
 
-Local API calls use the Vite dev proxy. Configure the backend target with:
+- **Xác thực người dùng**: Đăng nhập qua Form hoặc Google OAuth2, lưu phiên qua HTTP-only cookies, tự động làm mới token.
+- **Quản lý Workspace & Dự án**: Bảng điều khiển tổng quan, quản lý thành viên và phân quyền chi tiết.
+- **Kanban Board & Task Detail**: Kéo thả task, gán nhãn, cập nhật trạng thái, đính kèm tệp tin và bình luận.
+- **Thông báo thời gian thực**: Trung tâm thông báo các sự kiện quan trọng trong dự án.
 
-```bash
-VITE_API_PROXY_TARGET=http://localhost:8000
-```
+---
 
-Leave `VITE_API_BASE_URL` empty for local same-origin `/api` requests through the dev proxy.
+## Yêu cầu môi trường
 
-## Production Deploy
+- **Node.js**: 22+
+- **pnpm**: 9+
 
-The production target is Cloudflare Pages.
+---
 
-- Build command: `pnpm run build`
-- Output directory: `dist`
-- Node: `22`
-- Package manager: `pnpm`
+## Khởi chạy Local
 
-The default production topology is same-origin API access:
+1. **Cài đặt dependencies và thiết lập môi trường:**
+   ```bash
+   cp .env.example .env
+   pnpm install
+   ```
 
-1. The app calls `/api/*`.
-2. Cloudflare Pages rewrites `/api/*` to the deployed backend.
-3. Browser routes fall back to `/index.html`.
+2. **Chạy dev server:**
+   ```bash
+   pnpm dev
+   ```
 
-Before production release, update `public/_redirects` with the real backend origin:
+- Địa chỉ truy cập: `http://localhost:5173`
+- Dev proxy chuyển tiếp request `/api/*` tới backend (mặc định cấu hình `VITE_API_PROXY_TARGET=http://localhost:8000` trong `.env`).
 
-```text
-/api/* https://api.your-domain.com/api/:splat 200
-```
+---
 
-Keep `VITE_API_BASE_URL` empty when using this rewrite. Only set `VITE_API_BASE_URL` when intentionally calling a separate API origin directly.
-
-## Backend Requirements
-
-For same-origin Cloudflare rewrites, refresh-token cookies and CSRF requests continue to flow through `/api`.
-
-If the frontend calls a separate API origin directly instead, the backend must allow the frontend origin and use production cookie settings:
-
-- `APP_CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com`
-- `AUTH_COOKIE_SECURE=true`
-- `AUTH_COOKIE_SAME_SITE=None`
-
-When using a separate API origin, also widen `connect-src` in `public/_headers` and set `VITE_API_BASE_URL` in Cloudflare Pages.
-
-## Verification
+## Kiểm thử & Build
 
 ```bash
+# Kiểm tra định dạng và lỗi code
 pnpm lint
+
+# Chạy Unit test
+pnpm test
+
+# Build production
 pnpm build
-pnpm audit --prod --audit-level high --ignore GHSA-qwww-vcr4-c8h2
+
+# Chạy bản build local để kiểm thử
 pnpm preview
 ```
 
-After preview starts, verify `/login`, `/register`, `/workspaces`, and a deep route such as `/workspaces/1/dashboard`.
+---
+
+## Triển khai Production (Cloudflare Pages)
+
+- **Build command**: `pnpm run build`
+- **Output directory**: `dist`
+- **Node version**: `22`
+- **Mô hình**: Cùng domain (Same-origin) thông qua rule rewrite trong `public/_redirects`:
+  ```text
+  /api/* https://api.your-domain.com/api/:splat 200
+  ```
+  *(Để trống biến `VITE_API_BASE_URL` khi sử dụng proxy rewrite này)*.

@@ -106,7 +106,7 @@ export const DashboardLayout: React.FC = () => {
   });
 
   // 2. Fetch projects for active workspace
-  const activeWorkspaceId = workspaceId ? parseInt(workspaceId) : undefined;
+  const activeWorkspaceId = workspaceId ? parseInt(workspaceId, 10) : undefined;
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery<Project[]>({
     queryKey: queryKeys.projects(activeWorkspaceId),
     queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects`).then(res => res.data),
@@ -128,12 +128,19 @@ export const DashboardLayout: React.FC = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications() }),
   });
 
-  // Mark all as read
+  // Mark all as read — serialized to avoid N concurrent requests
   const readAllNotifMutation = useMutation({
     mutationFn: async () => {
       const unread = notifications.filter(n => !n.read);
-      const results = await Promise.allSettled(unread.map(n => apiClient.patch(`/api/notifications/${n.id}/read`)));
-      return results.filter((result) => result.status === 'rejected').length;
+      let failedCount = 0;
+      for (const n of unread) {
+        try {
+          await apiClient.patch(`/api/notifications/${n.id}/read`);
+        } catch {
+          failedCount++;
+        }
+      }
+      return failedCount;
     },
     onSuccess: (failedCount) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications() });
@@ -391,11 +398,12 @@ export const DashboardLayout: React.FC = () => {
         <header className="h-14 border-b border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-3 sm:px-6 shrink-0 z-10">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Menu Toggle Button */}
-            <button 
+            <button
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
               className="md:hidden text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-100 p-1 cursor-pointer"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
             <span className="hidden sm:inline text-xs font-semibold text-zinc-400 dark:text-slate-400 select-none">
               WorkNest

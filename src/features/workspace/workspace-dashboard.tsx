@@ -12,7 +12,8 @@ import Modal from '../../shared/components/modal';
 import Card, { CardHeader, CardTitle, CardContent } from '../../shared/components/card';
 import Badge from '../../shared/components/badge';
 import Avatar from '../../shared/components/avatar';
-import { 
+import Skeleton from '../../shared/components/skeleton';
+import {
   Building2, 
   FolderKanban, 
   Users, 
@@ -35,21 +36,21 @@ export const WorkspaceDashboard: React.FC = () => {
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('MEMBER');
 
   // 1. Fetch workspace details
-  const { data: workspace } = useQuery<Workspace>({
+  const { data: workspace, isLoading: isWorkspaceLoading } = useQuery<Workspace>({
     queryKey: queryKeys.workspace(activeWorkspaceId),
     queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}`).then((res) => res.data),
     enabled: !!activeWorkspaceId,
   });
 
   // 2. Fetch projects
-  const { data: projects = [] } = useQuery<Project[]>({
+  const { data: projects = [], isLoading: isProjectsLoading } = useQuery<Project[]>({
     queryKey: queryKeys.projects(activeWorkspaceId),
     queryFn: () => apiClient.get(`/api/workspaces/${activeWorkspaceId}/projects`).then((res) => res.data),
     enabled: !!activeWorkspaceId,
   });
 
   // 3. Fetch workspace members
-  const { data: members = [] } = useQuery<WorkspaceMember[]>({
+  const { data: members = [], isLoading: isMembersLoading } = useQuery<WorkspaceMember[]>({
     queryKey: queryKeys.workspaceMembers(activeWorkspaceId),
     queryFn: () =>
       apiClient
@@ -127,6 +128,27 @@ export const WorkspaceDashboard: React.FC = () => {
     },
   });
 
+  const isLoading = isWorkspaceLoading || isProjectsLoading || isMembersLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-full gap-6 text-left">
+        <div className="flex items-center gap-3">
+          <Skeleton className="w-12 h-12 rounded-xl" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="w-48 h-6" />
+            <Skeleton className="w-64 h-4" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
   const handleDeleteWorkspace = () => {
     if (
       confirm(

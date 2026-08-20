@@ -169,7 +169,7 @@ export function useProjectBoard(activeWorkspaceId: number, activeProjectId: numb
       title: string;
       description: string;
       priority: TaskPriority;
-      status?: TaskStatus;
+      status: TaskStatus;
       assigneeUserId?: number;
       dueDate?: string;
     }) =>

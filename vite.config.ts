@@ -12,6 +12,28 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-query';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('axios') || id.includes('zod') || id.includes('clsx') || id.includes('tailwind-merge')) {
+              return 'vendor-utils';
+            }
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './auth-context';
 
 const deferred = <T,>() => {
@@ -44,6 +44,11 @@ const AuthState = () => {
 };
 
 describe('AuthProvider', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
   it('does not restore a session when logout happens during bootstrap', async () => {
     const currentUser = deferred<{ data: { id: number; fullName: string } }>();
     api.refresh.mockResolvedValue(undefined);
@@ -75,6 +80,22 @@ describe('AuthProvider', () => {
     );
 
     await waitFor(() => expect(screen.getByText('false:false:')).toBeInTheDocument());
+  });
+
+  it('refreshes once when StrictMode re-runs effects', async () => {
+    api.refresh.mockResolvedValue(undefined);
+    api.get.mockResolvedValue({ data: { id: 1, fullName: 'Test User' } });
+
+    render(
+      <React.StrictMode>
+        <QueryClientProvider client={new QueryClient()}>
+          <AuthProvider><AuthState /></AuthProvider>
+        </QueryClientProvider>
+      </React.StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByText('true:false:Test User')).toBeInTheDocument());
+    expect(api.refresh).toHaveBeenCalledTimes(1);
   });
 
   it('does not let bootstrap overwrite a newer login', async () => {

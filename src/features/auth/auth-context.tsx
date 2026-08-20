@@ -29,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
   const isMounted = useRef(false);
+  const bootstrapPromise = useRef<Promise<void> | null>(null);
 
   const clearSession = useCallback(() => {
     setAccessToken(null);
@@ -61,7 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    void bootstrap();
+    bootstrapPromise.current ??= bootstrap();
+    void bootstrapPromise.current;
     const handleLogoutEvent = () => {
       clearSession();
       setIsLoading(false);

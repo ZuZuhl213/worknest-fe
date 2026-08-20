@@ -9,6 +9,7 @@ import CreateTaskModal from './create-task-modal';
 import TaskBoard from './task-board';
 import EmptyState from '../../shared/components/empty-state';
 import ErrorState from '../../shared/components/error-state';
+import Skeleton from '../../shared/components/skeleton';
 import { queryKeys } from '../../shared/api/query-keys';
 import { Plus, Search, ListFilter, UserCheck, Users, FolderKanban } from 'lucide-react';
 
@@ -144,8 +145,18 @@ export const ProjectDetailView: React.FC = () => {
 
       {/* Main Board content or Empty/Loading state */}
       {isTasksLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
+          {[1, 2, 3, 4].map((col) => (
+            <div key={col} className="flex flex-col gap-3 p-3 rounded-xl bg-zinc-50/50 dark:bg-slate-900/50 border border-zinc-200/60 dark:border-slate-800/60">
+              <div className="flex justify-between items-center pb-2">
+                <Skeleton className="w-24 h-5" />
+                <Skeleton className="w-6 h-5 rounded-full" />
+              </div>
+              <Skeleton className="h-28 rounded-lg" />
+              <Skeleton className="h-24 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+            </div>
+          ))}
         </div>
       ) : tasks.length === 0 && (search || selectedPriority || selectedAssignee) ? (
         <EmptyState
