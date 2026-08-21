@@ -82,7 +82,12 @@ const authClient = axios.create(clientOptions);
 export const apiClient = axios.create(clientOptions);
 
 export const fetchCsrfToken = async () => {
-  await authClient.get('/api/auth/csrf');
+  const response = await authClient.get<{ token?: string }>('/api/auth/csrf');
+  if (response.data?.token) {
+    csrfToken = response.data.token;
+    return;
+  }
+
   const cookie = document.cookie
     .split('; ')
     .find((entry) => entry.startsWith('XSRF-TOKEN='));
