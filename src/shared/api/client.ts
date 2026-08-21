@@ -44,6 +44,10 @@ export const getApiErrorMessage = (error: unknown, fallback: string) => {
       return 'Unable to connect to the server. Please check your connection and try again.';
     }
 
+    if (error.response.status === 503) {
+      return 'The backend is starting. Please wait a moment and try again.';
+    }
+
     const data = error.response.data;
     if (data?.message) return data.message;
     if (data?.fields && Object.keys(data.fields).length > 0) {

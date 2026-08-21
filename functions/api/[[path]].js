@@ -10,5 +10,19 @@ export async function onRequest({ request, params, env }) {
   headers.delete('origin');
   headers.delete('referer');
 
-  return fetch(targetUrl, new Request(request, { headers }));
+  try {
+    return await fetch(targetUrl, new Request(request, {
+      headers,
+      signal: AbortSignal.timeout(55_000),
+    }));
+  } catch {
+    return Response.json(
+      {
+        error: 'Service Unavailable',
+        message: 'The backend is starting. Please try again shortly.',
+        status: 503,
+      },
+      { status: 503, headers: { 'Retry-After': '30' } },
+    );
+  }
 }
